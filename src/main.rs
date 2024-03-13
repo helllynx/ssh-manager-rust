@@ -16,6 +16,7 @@
 #![allow(clippy::enum_glob_use, clippy::wildcard_imports)]
 
 use std::{error::Error, io, io::stdout};
+use std::arch::x86_64::_mm256_sad_epu8;
 
 use color_eyre::config::HookBuilder;
 use crossterm::{
@@ -30,23 +31,27 @@ const NORMAL_ROW_COLOR: Color = tailwind::SLATE.c950;
 const ALT_ROW_COLOR: Color = tailwind::SLATE.c900;
 const SELECTED_STYLE_FG: Color = tailwind::BLUE.c300;
 const TEXT_COLOR: Color = tailwind::SLATE.c200;
-const COMPLETED_TEXT_COLOR: Color = tailwind::GREEN.c500;
+const NOT_AVAILABLE_TEXT_COLOR: Color = tailwind::GREEN.c500;
 
 #[derive(Copy, Clone)]
 enum Status {
-    Todo,
-    Completed,
+    Available,
+    NotAvailable,
 }
 
-struct TodoItem<'a> {
-    todo: &'a str,
-    info: &'a str,
+struct ConnectionItem<'a> {
+    label: &'a str,
+    host: &'a str,
+    port: &'a u16,
+    user: &'a str,
+    password: &'a str,
+    details: &'a str,
     status: Status,
 }
 
 struct StatefulList<'a> {
     state: ListState,
-    items: Vec<TodoItem<'a>>,
+    items: Vec<ConnectionItem<'a>>,
     last_selected: Option<usize>,
 }
 
@@ -106,12 +111,12 @@ impl<'a> App<'a> {
     fn new() -> Self {
         Self {
             items: StatefulList::with_items([
-                ("Rewrite everything with Rust!", "I can't hold my inner voice. He tells me to rewrite the complete universe with Rust", Status::Todo),
-                ("Rewrite all of your tui apps with Ratatui", "Yes, you heard that right. Go and replace your tui with Ratatui.", Status::Completed),
-                ("Pet your cat", "Minnak loves to be pet by you! Don't forget to pet and give some treats!", Status::Todo),
-                ("Walk with your dog", "Max is bored, go walk with him!", Status::Todo),
-                ("Pay the bills", "Pay the train subscription!!!", Status::Completed),
-                ("Refactor list example", "If you see this info that means I completed this task!", Status::Completed),
+                ("MyServer", "localhost", &22, "user", "password", "blabla", Status::Available),
+                // ("Rewrite all of your tui apps with Ratatui", "Yes, you heard that right. Go and replace your tui with Ratatui.", Status::Completed),
+                // ("Pet your cat", "Minnak loves to be pet by you! Don't forget to pet and give some treats!", Status::Todo),
+                // ("Walk with your dog", "Max is bored, go walk with him!", Status::Todo),
+                // ("Pay the bills", "Pay the train subscription!!!", Status::Completed),
+                // ("Refactor list example", "If you see this info that means I completed this task!", Status::Completed),
             ]),
         }
     }
@@ -120,8 +125,8 @@ impl<'a> App<'a> {
     fn change_status(&mut self) {
         if let Some(i) = self.items.state.selected() {
             self.items.items[i].status = match self.items.items[i].status {
-                Status::Completed => Status::Todo,
-                Status::Todo => Status::Completed,
+                Status::Available => Status::NotAvailable,
+                Status::NotAvailable => Status::Available,
             }
         }
     }
@@ -193,7 +198,7 @@ impl App<'_> {
             .borders(Borders::NONE)
             .fg(TEXT_COLOR)
             .bg(TODO_HEADER_BG)
-            .title("TODO List")
+            .title("Connections list")
             .title_alignment(Alignment::Center);
         let inner_block = Block::default()
             .borders(Borders::NONE)
@@ -238,8 +243,8 @@ impl App<'_> {
         // We get the info depending on the item's state.
         let info = if let Some(i) = self.items.state.selected() {
             match self.items.items[i].status {
-                Status::Completed => "✓ DONE: ".to_string() + self.items.items[i].info,
-                Status::Todo => "TODO: ".to_string() + self.items.items[i].info,
+                Status::Available => "✓ DONE: ".to_string() + self.items.items[i].host,
+                Status::NotAvailable => "TODO: ".to_string() + self.items.items[i].host,
             }
         } else {
             "Nothing to see here...".to_string()
@@ -250,7 +255,7 @@ impl App<'_> {
             .borders(Borders::NONE)
             .fg(TEXT_COLOR)
             .bg(TODO_HEADER_BG)
-            .title("TODO Info")
+            .title("Connection info")
             .title_alignment(Alignment::Center);
         let inner_info_block = Block::default()
             .borders(Borders::NONE)
@@ -276,7 +281,7 @@ impl App<'_> {
 }
 
 fn render_title(area: Rect, buf: &mut Buffer) {
-    Paragraph::new("Ratatui List Example")
+    Paragraph::new("SSH Manager")
         .bold()
         .centered()
         .render(area, buf);
@@ -289,10 +294,10 @@ fn render_footer(area: Rect, buf: &mut Buffer) {
 }
 
 impl StatefulList<'_> {
-    fn with_items<'a>(items: [(&'a str, &'a str, Status); 6]) -> StatefulList<'a> {
+    fn with_items<'a>(items: [(&'a str, &'a str, &'a u16, &'a str, &'a str, &'a str, Status); 1]) -> StatefulList<'a> {
         StatefulList {
             state: ListState::default(),
-            items: items.iter().map(TodoItem::from).collect(),
+            items: items.iter().map(ConnectionItem::from).collect(),
             last_selected: None,
         }
     }
@@ -333,17 +338,17 @@ impl StatefulList<'_> {
     }
 }
 
-impl TodoItem<'_> {
+impl ConnectionItem<'_> {
     fn to_list_item(&self, index: usize) -> ListItem {
         let bg_color = match index % 2 {
             0 => NORMAL_ROW_COLOR,
             _ => ALT_ROW_COLOR,
         };
         let line = match self.status {
-            Status::Todo => Line::styled(format!(" ☐ {}", self.todo), TEXT_COLOR),
-            Status::Completed => Line::styled(
-                format!(" ✓ {}", self.todo),
-                (COMPLETED_TEXT_COLOR, bg_color),
+            Status::Available => Line::styled(format!(" > {} {}", self.label, self.host), TEXT_COLOR),
+            Status::NotAvailable => Line::styled(
+                format!(" X {} {}", self.label, self.host),
+                (NOT_AVAILABLE_TEXT_COLOR, bg_color),
             ),
         };
 
@@ -351,11 +356,23 @@ impl TodoItem<'_> {
     }
 }
 
-impl<'a> From<&(&'a str, &'a str, Status)> for TodoItem<'a> {
-    fn from((todo, info, status): &(&'a str, &'a str, Status)) -> Self {
+impl<'a> From<&(&'a str, &'a str, &'a u16, &'a str, &'a str, &'a str, Status)> for ConnectionItem<'a> {
+    fn from((
+                label,
+                host,
+                port,
+                user,
+                password,
+                details,
+                status
+            ): &(&'a str, &'a str, &'a u16, &'a str, &'a str, &'a str, Status)) -> Self {
         Self {
-            todo,
-            info,
+            label: label,
+            host: host,
+            port: port,
+            user: user,
+            password: password,
+            details: details,
             status: *status,
         }
     }
