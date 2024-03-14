@@ -17,6 +17,8 @@
 
 use std::{error::Error, io, io::stdout};
 use std::arch::x86_64::_mm256_sad_epu8;
+use std::process::exit;
+use std::process::Command;
 
 use color_eyre::config::HookBuilder;
 use crossterm::{
@@ -26,12 +28,12 @@ use crossterm::{
 };
 use ratatui::{prelude::*, style::palette::tailwind, widgets::*};
 
-const TODO_HEADER_BG: Color = tailwind::BLUE.c950;
+const TODO_HEADER_BG: Color = tailwind::BLACK;
 const NORMAL_ROW_COLOR: Color = tailwind::SLATE.c950;
 const ALT_ROW_COLOR: Color = tailwind::SLATE.c900;
-const SELECTED_STYLE_FG: Color = tailwind::BLUE.c300;
+const SELECTED_STYLE_FG: Color = tailwind::YELLOW.c700;
 const TEXT_COLOR: Color = tailwind::SLATE.c200;
-const NOT_AVAILABLE_TEXT_COLOR: Color = tailwind::GREEN.c500;
+const NOT_AVAILABLE_TEXT_COLOR: Color = tailwind::RED.c500;
 
 #[derive(Copy, Clone)]
 enum Status {
@@ -111,7 +113,8 @@ impl<'a> App<'a> {
     fn new() -> Self {
         Self {
             items: StatefulList::with_items([
-                ("MyServer", "localhost", &22, "user", "password", "blabla", Status::Available),
+                ("Local server 0", "123.23.23.23", &22, "root", "", "This is some server", Status::Available),
+                ("Local server 1", "localhost", &22, "user", "87654321", "This is some other server", Status::Available),
                 // ("Rewrite all of your tui apps with Ratatui", "Yes, you heard that right. Go and replace your tui with Ratatui.", Status::Completed),
                 // ("Pet your cat", "Minnak loves to be pet by you! Don't forget to pet and give some treats!", Status::Todo),
                 // ("Walk with your dog", "Max is bored, go walk with him!", Status::Todo),
@@ -121,12 +124,37 @@ impl<'a> App<'a> {
         }
     }
 
+    // val commandSsh = when (password.isEmpty()) {
+    // true  -> listOf("/bin/bash", "-ic", "konsole -e \"ssh -o ServerAliveInterval=15 -o ServerAliveCountMax=3 ${user}@${host} -p $port\"")
+    // false -> listOf("/bin/bash", "-ic", "konsole -e \"sshpass -p $password ssh -o ServerAliveInterval=15 -o ServerAliveCountMax=3 ${user}@${host} -p $port\"")
+    // }
+
     /// Changes the status of the selected list item
-    fn change_status(&mut self) {
+    fn connect(&mut self) {
         if let Some(i) = self.items.state.selected() {
-            self.items.items[i].status = match self.items.items[i].status {
-                Status::Available => Status::NotAvailable,
-                Status::NotAvailable => Status::Available,
+            match self.items.items[i].status {
+                Status::Available => {
+                    restore_terminal().unwrap();
+                    let command = format!(
+                        "-o ServerAliveInterval=15 -o ServerAliveCountMax=3 {}@{} -p {}",
+                        self.items.items[i].user,
+                        self.items.items[i].host,
+                        self.items.items[i].port,
+                    );
+                    let output = Command::new("ssh")
+                        .arg("-o ServerAliveInterval=15")
+                        .arg("-o ServerAliveCountMax=3")
+                        .arg(format!("{}@{}", self.items.items[i].user, self.items.items[i].host))
+                        .arg(format!("-p {}", self.items.items[i].port))
+                        .output().expect("ssh command failed");
+
+                    println!("status: {}", output.status);
+                    println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+                    println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+
+                    exit(0);
+                }
+                Status::NotAvailable => {}
             }
         }
     }
@@ -153,7 +181,7 @@ impl App<'_> {
                         Char('h') | Left => self.items.unselect(),
                         Char('j') | Down => self.items.next(),
                         Char('k') | Up => self.items.previous(),
-                        Char('l') | Right | Enter => self.change_status(),
+                        Char('l') | Right | Enter => self.connect(),
                         Char('g') => self.go_top(),
                         Char('G') => self.go_bottom(),
                         _ => {}
@@ -243,7 +271,7 @@ impl App<'_> {
         // We get the info depending on the item's state.
         let info = if let Some(i) = self.items.state.selected() {
             match self.items.items[i].status {
-                Status::Available => "✓ DONE: ".to_string() + self.items.items[i].host,
+                Status::Available => self.items.items[i].display(),
                 Status::NotAvailable => "TODO: ".to_string() + self.items.items[i].host,
             }
         } else {
@@ -294,7 +322,7 @@ fn render_footer(area: Rect, buf: &mut Buffer) {
 }
 
 impl StatefulList<'_> {
-    fn with_items<'a>(items: [(&'a str, &'a str, &'a u16, &'a str, &'a str, &'a str, Status); 1]) -> StatefulList<'a> {
+    fn with_items<'a>(items: [(&'a str, &'a str, &'a u16, &'a str, &'a str, &'a str, Status); 2]) -> StatefulList<'a> {
         StatefulList {
             state: ListState::default(),
             items: items.iter().map(ConnectionItem::from).collect(),
@@ -353,6 +381,17 @@ impl ConnectionItem<'_> {
         };
 
         ListItem::new(line).bg(bg_color)
+    }
+
+    fn display(&self) -> String {
+        let info = format!(
+            "label: {}\n\
+             host: {}\n\
+             port: {}\n\
+             user: {}\n\
+             details: {}\n",
+            self.label, self.host, self.port, self.user, self.details);
+        return info;
     }
 }
 
