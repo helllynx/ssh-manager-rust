@@ -15,18 +15,20 @@
 
 #![allow(clippy::enum_glob_use, clippy::wildcard_imports)]
 
-use std::{error::Error, io, io::stdout};
-use std::arch::x86_64::_mm256_sad_epu8;
-use std::process::exit;
+use std::{error::Error, fs, io, io::stdout};
 use std::process::Command;
+use std::process::exit;
 
 use color_eyre::config::HookBuilder;
 use crossterm::{
     event::{self, Event, KeyCode, KeyEventKind},
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use execute::Execute;
 use ratatui::{prelude::*, style::palette::tailwind, widgets::*};
+
+mod utils;
 
 const TODO_HEADER_BG: Color = tailwind::BLACK;
 const NORMAL_ROW_COLOR: Color = tailwind::SLATE.c950;
@@ -130,28 +132,43 @@ impl<'a> App<'a> {
     // }
 
     /// Changes the status of the selected list item
-    fn connect(&mut self) {
+    fn connect(&mut self, sshfs: bool) {
+        // sshpass -p $password
         if let Some(i) = self.items.state.selected() {
             match self.items.items[i].status {
                 Status::Available => {
                     restore_terminal().unwrap();
-                    let command = format!(
-                        "-o ServerAliveInterval=15 -o ServerAliveCountMax=3 {}@{} -p {}",
-                        self.items.items[i].user,
-                        self.items.items[i].host,
-                        self.items.items[i].port,
-                    );
-                    let output = Command::new("ssh")
-                        .arg("-o ServerAliveInterval=15")
-                        .arg("-o ServerAliveCountMax=3")
-                        .arg(format!("{}@{}", self.items.items[i].user, self.items.items[i].host))
-                        .arg(format!("-p {}", self.items.items[i].port))
-                        .output().expect("ssh command failed");
+                    let output = if sshfs {
+                        // sshfs -o reconnect,ServerAliveInterval=15,ServerAliveCountMax=3 ${connection.user}@${connection.host}:/ $pathToSshfsMountDir -p ${connection.port}
+                        let mount_path = format!("/tmp/{}", utils::remove_whitespace(self.items.items[i].label));
+                        fs::create_dir_all(&mount_path).expect(&format!("Can't create temp directory {}", mount_path));
 
-                    println!("status: {}", output.status);
-                    println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
-                    println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+                        Command::new("sshfs")
+                            // .arg("-o reconnect")
+                            // .arg("-o ServerAliveInterval=15")
+                            // .arg("-o ServerAliveCountMax=3")
+                            .arg(format!("{}@{}:/", self.items.items[i].user, self.items.items[i].host))
+                            .arg(mount_path)
+                            .arg(format!("-p {}", self.items.items[i].port))
+                            .execute_output().unwrap()
+                    } else {
+                        Command::new("sshfs")
+                            .arg("-o ServerAliveInterval=15")
+                            .arg("-o ServerAliveCountMax=3")
+                            .arg(format!("{}@{}", self.items.items[i].user, self.items.items[i].host))
+                            .arg(format!("-p {}", self.items.items[i].port))
+                            .execute_output().unwrap()
+                    };
 
+                    if let Some(exit_code) = output.status.code() {
+                        if exit_code == 0 {
+                            println!("Ok.");
+                        } else {
+                            eprintln!("Failed.");
+                        }
+                    } else {
+                        eprintln!("Interrupted!");
+                    };
                     exit(0);
                 }
                 Status::NotAvailable => {}
@@ -181,7 +198,8 @@ impl App<'_> {
                         Char('h') | Left => self.items.unselect(),
                         Char('j') | Down => self.items.next(),
                         Char('k') | Up => self.items.previous(),
-                        Char('l') | Right | Enter => self.connect(),
+                        Char('l') | Right | Enter => self.connect(false),
+                        Char('f') => self.connect(true),
                         Char('g') => self.go_top(),
                         Char('G') => self.go_bottom(),
                         _ => {}
@@ -316,7 +334,7 @@ fn render_title(area: Rect, buf: &mut Buffer) {
 }
 
 fn render_footer(area: Rect, buf: &mut Buffer) {
-    Paragraph::new("\nUse ↓↑ to move, ← to unselect, → to change status, g/G to go top/bottom.")
+    Paragraph::new("\nUse ↓↑ to move, ← to unselect, → to change status, g/G to go top/bottom. f to sshfs.")
         .centered()
         .render(area, buf);
 }
