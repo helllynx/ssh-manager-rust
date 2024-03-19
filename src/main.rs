@@ -117,29 +117,17 @@ impl<'a> App<'a> {
             items: StatefulList::with_items([
                 ("Local server 0", "123.23.23.23", &22, "root", "", "This is some server", Status::Available),
                 ("Local server 1", "localhost", &22, "user", "87654321", "This is some other server", Status::Available),
-                // ("Rewrite all of your tui apps with Ratatui", "Yes, you heard that right. Go and replace your tui with Ratatui.", Status::Completed),
-                // ("Pet your cat", "Minnak loves to be pet by you! Don't forget to pet and give some treats!", Status::Todo),
-                // ("Walk with your dog", "Max is bored, go walk with him!", Status::Todo),
-                // ("Pay the bills", "Pay the train subscription!!!", Status::Completed),
-                // ("Refactor list example", "If you see this info that means I completed this task!", Status::Completed),
             ]),
         }
     }
 
-    // val commandSsh = when (password.isEmpty()) {
-    // true  -> listOf("/bin/bash", "-ic", "konsole -e \"ssh -o ServerAliveInterval=15 -o ServerAliveCountMax=3 ${user}@${host} -p $port\"")
-    // false -> listOf("/bin/bash", "-ic", "konsole -e \"sshpass -p $password ssh -o ServerAliveInterval=15 -o ServerAliveCountMax=3 ${user}@${host} -p $port\"")
-    // }
-
     /// Changes the status of the selected list item
     fn connect(&mut self, sshfs: bool) {
-        // sshpass -p $password
         if let Some(i) = self.items.state.selected() {
             match self.items.items[i].status {
                 Status::Available => {
                     restore_terminal().unwrap();
                     let output = if sshfs {
-                        // sshfs -o reconnect,ServerAliveInterval=15,ServerAliveCountMax=3 ${connection.user}@${connection.host}:/ $pathToSshfsMountDir -p ${connection.port}
                         let mount_path = format!("/tmp/{}", utils::remove_whitespace(self.items.items[i].label));
                         fs::create_dir_all(&mount_path).expect(&format!("Can't create temp directory {}", mount_path));
 
@@ -152,12 +140,14 @@ impl<'a> App<'a> {
                             .arg(format!("-p {}", self.items.items[i].port))
                             .execute_output().unwrap()
                     } else {
-                        Command::new("sshfs")
+                        let command =  Command::new("ssh")
                             .arg("-o ServerAliveInterval=15")
                             .arg("-o ServerAliveCountMax=3")
                             .arg(format!("{}@{}", self.items.items[i].user, self.items.items[i].host))
-                            .arg(format!("-p {}", self.items.items[i].port))
-                            .execute_output().unwrap()
+                            .arg(format!("-p {}", self.items.items[i].port));
+
+                        //TODO implement sshpass
+                        command.execute_output().unwrap()
                     };
 
                     if let Some(exit_code) = output.status.code() {
