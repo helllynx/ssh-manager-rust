@@ -114,9 +114,8 @@ fn restore_terminal() -> color_eyre::Result<()> {
 impl<'a> App<'a> {
     fn new() -> Self {
         Self {
-            items: StatefulList::with_items([
-                ("Local server 0", "123.23.23.23", &22, "root", "", "This is some server", Status::Available),
-                ("Local server 1", "localhost", &22, "user", "87654321", "This is some other server", Status::Available),
+            items: StatefulList::with_items(vec![
+                ConnectionItem {label: "Local server 0", host: "localhost", port: &22, user: "root", password: "", details: "This is some server", status: Status::Available},
             ]),
         }
     }
@@ -144,10 +143,11 @@ impl<'a> App<'a> {
                             .arg("-o ServerAliveInterval=15")
                             .arg("-o ServerAliveCountMax=3")
                             .arg(format!("{}@{}", self.items.items[i].user, self.items.items[i].host))
-                            .arg(format!("-p {}", self.items.items[i].port));
-
+                            .arg(format!("-p {}", self.items.items[i].port))
+                            .execute_output().unwrap();
+                        command
                         //TODO implement sshpass
-                        command.execute_output().unwrap()
+                        // command.execute_output().unwrap()
                     };
 
                     if let Some(exit_code) = output.status.code() {
@@ -330,10 +330,10 @@ fn render_footer(area: Rect, buf: &mut Buffer) {
 }
 
 impl StatefulList<'_> {
-    fn with_items<'a>(items: [(&'a str, &'a str, &'a u16, &'a str, &'a str, &'a str, Status); 2]) -> StatefulList<'a> {
+    fn with_items(items: Vec<ConnectionItem>) -> StatefulList {
         StatefulList {
             state: ListState::default(),
-            items: items.iter().map(ConnectionItem::from).collect(),
+            items: items,
             last_selected: None,
         }
     }
@@ -400,27 +400,5 @@ impl ConnectionItem<'_> {
              details: {}\n",
             self.label, self.host, self.port, self.user, self.details);
         return info;
-    }
-}
-
-impl<'a> From<&(&'a str, &'a str, &'a u16, &'a str, &'a str, &'a str, Status)> for ConnectionItem<'a> {
-    fn from((
-                label,
-                host,
-                port,
-                user,
-                password,
-                details,
-                status
-            ): &(&'a str, &'a str, &'a u16, &'a str, &'a str, &'a str, Status)) -> Self {
-        Self {
-            label: label,
-            host: host,
-            port: port,
-            user: user,
-            password: password,
-            details: details,
-            status: *status,
-        }
     }
 }
