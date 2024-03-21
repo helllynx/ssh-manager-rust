@@ -16,6 +16,7 @@
 #![allow(clippy::enum_glob_use, clippy::wildcard_imports)]
 
 use std::{error::Error, fs, io, io::stdout};
+use std::fmt::format;
 use std::process::Command;
 use std::process::exit;
 
@@ -81,7 +82,7 @@ struct App {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let file: String = fs::read_to_string("/home/zybc/Sync/ssh_helper/store.json")?.parse()?;
+    let file: String = fs::read_to_string("/home/yenqw/Code/ssh-manager-rust/data/store.json")?.parse()?;
     let connections: Vec<StoredConnection> = serde_json::from_str(&file).unwrap();
     // setup terminal
     init_error_hooks()?;
@@ -132,34 +133,67 @@ impl App {
     }
 
     /// Changes the status of the selected list item
-    fn connect(&mut self, sshfs: bool) {
+    fn connect_ssh(&mut self) {
         if let Some(i) = self.items.state.selected() {
             match self.items.items[i].status {
                 Status::Available => {
                     restore_terminal().unwrap();
-                    let output = if sshfs {
-                        let mount_path = format!("/tmp/{}", utils::remove_whitespace(self.items.items[i].label.as_str()));
-                        fs::create_dir_all(&mount_path).expect(&format!("Can't create temp directory {}", mount_path));
-
-                        Command::new("sshfs")
-                            // .arg("-o reconnect")
-                            // .arg("-o ServerAliveInterval=15")
-                            // .arg("-o ServerAliveCountMax=3")
-                            .arg(format!("{}@{}:/", self.items.items[i].user, self.items.items[i].host))
-                            .arg(mount_path)
-                            .arg(format!("-p {}", self.items.items[i].port))
-                            .execute_output().unwrap()
-                    } else {
-                        let command = Command::new("ssh")
+                    let output = if  !self.items.items[i].password.is_empty() {
+                        Command::new("/bin/bash")
+                            .arg("-ic")
+                            .arg("sshpass")
+                            .arg(format!("-p {}", self.items.items[i].password))
+                            .arg("ssh")
                             .arg("-o ServerAliveInterval=15")
                             .arg("-o ServerAliveCountMax=3")
                             .arg(format!("{}@{}", self.items.items[i].user, self.items.items[i].host))
                             .arg(format!("-p {}", self.items.items[i].port))
-                            .execute_output().unwrap();
-                        command
-                        //TODO implement sshpass
-                        // command.execute_output().unwrap()
+                            .execute_output().unwrap()
+                    } else {
+                        Command::new("ssh")
+                            .arg("-o ServerAliveInterval=15")
+                            .arg("-o ServerAliveCountMax=3")
+                            .arg(format!("{}@{}", self.items.items[i].user, self.items.items[i].host))
+                            .arg(format!("-p {}", self.items.items[i].port))
+                            .execute_output().unwrap()
                     };
+
+                    if let Some(exit_code) = output.status.code() {
+                        println!("status: {}", output.status);
+                        if exit_code == 0 {
+                            println!("Ok.");
+                        } else {
+                            eprintln!("Failed.");
+                            // println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+                            println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+                        }
+                    } else {
+                        eprintln!("Interrupted!");
+                    };
+                    exit(0);
+                }
+                Status::NotAvailable => {}
+            }
+        }
+    }
+
+    fn connect_sshfs(&mut self) {
+        if let Some(i) = self.items.state.selected() {
+            match self.items.items[i].status {
+                Status::Available => {
+                    restore_terminal().unwrap();
+
+                    let mount_path = format!("/tmp/{}", utils::remove_whitespace(self.items.items[i].label.as_str()));
+                    fs::create_dir_all(&mount_path).expect(&format!("Can't create temp directory {}", mount_path));
+
+                    let output = Command::new("sshfs")
+                        // .arg("-o reconnect")
+                        // .arg("-o ServerAliveInterval=15")
+                        // .arg("-o ServerAliveCountMax=3")
+                        .arg(format!("{}@{}:/", self.items.items[i].user, self.items.items[i].host))
+                        .arg(mount_path)
+                        .arg(format!("-p {}", self.items.items[i].port))
+                        .execute_output().unwrap();
 
                     if let Some(exit_code) = output.status.code() {
                         if exit_code == 0 {
@@ -199,8 +233,8 @@ impl App {
                         Char('h') | Left => self.items.unselect(),
                         Char('j') | Down => self.items.next(),
                         Char('k') | Up => self.items.previous(),
-                        Char('l') | Right | Enter => self.connect(false),
-                        Char('f') => self.connect(true),
+                        Char('l') | Right | Enter => self.connect_ssh(),
+                        Char('f') => self.connect_sshfs(),
                         Char('g') => self.go_top(),
                         Char('G') => self.go_bottom(),
                         _ => {}
