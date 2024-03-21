@@ -27,6 +27,7 @@ use crossterm::{
 };
 use execute::Execute;
 use ratatui::{prelude::*, style::palette::tailwind, widgets::*};
+use serde::{Deserialize, Serialize};
 
 mod utils;
 
@@ -43,20 +44,30 @@ enum Status {
     NotAvailable,
 }
 
-struct ConnectionItem<'a> {
-    label: &'a str,
-    host: &'a str,
-    port: &'a u16,
-    user: &'a str,
-    password: &'a str,
-    details: &'a str,
+struct ConnectionItem {
+    label: String,
+    host: String,
+    port: String,
+    user: String,
+    password: String,
+    details: String,
     status: Status,
 }
 
-struct StatefulList<'a> {
+struct StatefulList {
     state: ListState,
-    items: Vec<ConnectionItem<'a>>,
+    items: Vec<ConnectionItem>,
     last_selected: Option<usize>,
+}
+
+
+#[derive(Serialize, Deserialize)]
+struct StoredConnection {
+    label: String,
+    host: String,
+    port: String,
+    user: String,
+    password: Option<String>,
 }
 
 /// This struct holds the current state of the app. In particular, it has the `items` field which is
@@ -65,17 +76,19 @@ struct StatefulList<'a> {
 ///
 /// Check the event handling at the bottom to see how to change the state on incoming events.
 /// Check the drawing logic for items on how to specify the highlighting style for selected items.
-struct App<'a> {
-    items: StatefulList<'a>,
+struct App {
+    items: StatefulList,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    let file: String = fs::read_to_string("/home/zybc/Sync/ssh_helper/store.json")?.parse()?;
+    let connections: Vec<StoredConnection> = serde_json::from_str(&file).unwrap();
     // setup terminal
     init_error_hooks()?;
     let terminal = init_terminal()?;
 
     // create app and run it
-    App::new().run(terminal)?;
+    App::new(connections).run(terminal)?;
 
     restore_terminal()?;
 
@@ -111,12 +124,10 @@ fn restore_terminal() -> color_eyre::Result<()> {
     Ok(())
 }
 
-impl<'a> App<'a> {
-    fn new() -> Self {
+impl App {
+    fn new(connections: Vec<StoredConnection>) -> Self {
         Self {
-            items: StatefulList::with_items(vec![
-                ConnectionItem {label: "Local server 0", host: "localhost", port: &22, user: "root", password: "", details: "This is some server", status: Status::Available},
-            ]),
+            items: StatefulList::with_items(connections),
         }
     }
 
@@ -127,7 +138,7 @@ impl<'a> App<'a> {
                 Status::Available => {
                     restore_terminal().unwrap();
                     let output = if sshfs {
-                        let mount_path = format!("/tmp/{}", utils::remove_whitespace(self.items.items[i].label));
+                        let mount_path = format!("/tmp/{}", utils::remove_whitespace(self.items.items[i].label.as_str()));
                         fs::create_dir_all(&mount_path).expect(&format!("Can't create temp directory {}", mount_path));
 
                         Command::new("sshfs")
@@ -139,7 +150,7 @@ impl<'a> App<'a> {
                             .arg(format!("-p {}", self.items.items[i].port))
                             .execute_output().unwrap()
                     } else {
-                        let command =  Command::new("ssh")
+                        let command = Command::new("ssh")
                             .arg("-o ServerAliveInterval=15")
                             .arg("-o ServerAliveCountMax=3")
                             .arg(format!("{}@{}", self.items.items[i].user, self.items.items[i].host))
@@ -175,7 +186,7 @@ impl<'a> App<'a> {
     }
 }
 
-impl App<'_> {
+impl App {
     fn run(&mut self, mut terminal: Terminal<impl Backend>) -> io::Result<()> {
         loop {
             self.draw(&mut terminal)?;
@@ -205,7 +216,7 @@ impl App<'_> {
     }
 }
 
-impl Widget for &mut App<'_> {
+impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
         // Create a space for header, todo list and the footer.
         let vertical = Layout::vertical([
@@ -227,7 +238,7 @@ impl Widget for &mut App<'_> {
     }
 }
 
-impl App<'_> {
+impl App {
     fn render_todo(&mut self, area: Rect, buf: &mut Buffer) {
         // We create two blocks, one is for the header (outer) and the other is for list (inner).
         let outer_block = Block::default()
@@ -280,7 +291,7 @@ impl App<'_> {
         let info = if let Some(i) = self.items.state.selected() {
             match self.items.items[i].status {
                 Status::Available => self.items.items[i].display(),
-                Status::NotAvailable => "TODO: ".to_string() + self.items.items[i].host,
+                Status::NotAvailable => "TODO: ".to_string() + self.items.items[i].host.as_str(),
             }
         } else {
             "Nothing to see here...".to_string()
@@ -329,11 +340,27 @@ fn render_footer(area: Rect, buf: &mut Buffer) {
         .render(area, buf);
 }
 
-impl StatefulList<'_> {
-    fn with_items(items: Vec<ConnectionItem>) -> StatefulList {
+impl StatefulList {
+    fn with_items(items: Vec<StoredConnection>) -> StatefulList {
+        let a = items.into_iter().map(|item|
+            ConnectionItem {
+                label: item.label,
+                host: item.host,
+                port: item.port,
+                user: item.user,
+                password: if let Some(password) = item.password {
+                    password
+                } else {
+                    "".parse().unwrap()
+                },
+                details: "".parse().unwrap(),
+                status: Status::Available,
+            }
+        ).collect::<Vec<ConnectionItem>>();
+
         StatefulList {
             state: ListState::default(),
-            items: items,
+            items: a,
             last_selected: None,
         }
     }
@@ -374,7 +401,7 @@ impl StatefulList<'_> {
     }
 }
 
-impl ConnectionItem<'_> {
+impl ConnectionItem {
     fn to_list_item(&self, index: usize) -> ListItem {
         let bg_color = match index % 2 {
             0 => NORMAL_ROW_COLOR,
