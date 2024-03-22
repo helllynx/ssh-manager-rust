@@ -16,7 +16,6 @@
 #![allow(clippy::enum_glob_use, clippy::wildcard_imports)]
 
 use std::{error::Error, fs, io, io::stdout};
-use std::fmt::format;
 use std::process::Command;
 use std::process::exit;
 
@@ -82,7 +81,7 @@ struct App {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let file: String = fs::read_to_string("/home/yenqw/Code/ssh-manager-rust/data/store.json")?.parse()?;
+    let file: String = fs::read_to_string("/store.json")?.parse()?;
     let connections: Vec<StoredConnection> = serde_json::from_str(&file).unwrap();
     // setup terminal
     init_error_hooks()?;
@@ -262,7 +261,7 @@ impl Widget for &mut App {
 
         // Create two chunks with equal vertical screen space. One for the list and the other for
         // the info block.
-        let vertical = Layout::vertical([Constraint::Percentage(50), Constraint::Percentage(50)]);
+        let vertical = Layout::horizontal([Constraint::Percentage(70), Constraint::Percentage(30)]);
         let [upper_item_list_area, lower_item_list_area] = vertical.areas(rest_area);
 
         render_title(header_area, buf);
