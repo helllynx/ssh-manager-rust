@@ -31,7 +31,7 @@ use serde::{Deserialize, Serialize};
 
 mod utils;
 
-const TODO_HEADER_BG: Color = tailwind::BLACK;
+const APP_HEADER_BG: Color = tailwind::BLACK;
 const NORMAL_ROW_COLOR: Color = tailwind::SLATE.c950;
 const ALT_ROW_COLOR: Color = tailwind::SLATE.c900;
 const SELECTED_STYLE_FG: Color = tailwind::YELLOW.c700;
@@ -138,15 +138,11 @@ impl App {
                 Status::Available => {
                     restore_terminal().unwrap();
                     let output = if  !self.items.items[i].password.is_empty() {
-                        Command::new("/bin/bash")
-                            .arg("-ic")
-                            .arg("sshpass")
-                            .arg(format!("-p {}", self.items.items[i].password))
-                            .arg("ssh")
-                            .arg("-o ServerAliveInterval=15")
-                            .arg("-o ServerAliveCountMax=3")
-                            .arg(format!("{}@{}", self.items.items[i].user, self.items.items[i].host))
-                            .arg(format!("-p {}", self.items.items[i].port))
+                        let ssh_command = format!("sshpass -p {} ssh {}@{} -p {}", self.items.items[i].password, self.items.items[i].user, self.items.items[i].host, self.items.items[i].port);
+
+                        Command::new("sh")
+                            .arg("-c")
+                            .arg(ssh_command)
                             .execute_output().unwrap()
                     } else {
                         Command::new("ssh")
@@ -163,7 +159,6 @@ impl App {
                             println!("Ok.");
                         } else {
                             eprintln!("Failed.");
-                            // println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
                             println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
                         }
                     } else {
@@ -199,6 +194,7 @@ impl App {
                             println!("Ok.");
                         } else {
                             eprintln!("Failed.");
+                            println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
                         }
                     } else {
                         eprintln!("Interrupted!");
@@ -265,19 +261,19 @@ impl Widget for &mut App {
         let [upper_item_list_area, lower_item_list_area] = vertical.areas(rest_area);
 
         render_title(header_area, buf);
-        self.render_todo(upper_item_list_area, buf);
+        self.render_app(upper_item_list_area, buf);
         self.render_info(lower_item_list_area, buf);
         render_footer(footer_area, buf);
     }
 }
 
 impl App {
-    fn render_todo(&mut self, area: Rect, buf: &mut Buffer) {
+    fn render_app(&mut self, area: Rect, buf: &mut Buffer) {
         // We create two blocks, one is for the header (outer) and the other is for list (inner).
         let outer_block = Block::default()
             .borders(Borders::NONE)
             .fg(TEXT_COLOR)
-            .bg(TODO_HEADER_BG)
+            .bg(APP_HEADER_BG)
             .title("Connections list")
             .title_alignment(Alignment::Center);
         let inner_block = Block::default()
@@ -298,7 +294,7 @@ impl App {
             .items
             .iter()
             .enumerate()
-            .map(|(i, todo_item)| todo_item.to_list_item(i))
+            .map(|(i, connection_item)| connection_item.to_list_item(i))
             .collect();
 
         // Create a List from all list items and highlight the currently selected one
@@ -324,17 +320,17 @@ impl App {
         let info = if let Some(i) = self.items.state.selected() {
             match self.items.items[i].status {
                 Status::Available => self.items.items[i].display(),
-                Status::NotAvailable => "TODO: ".to_string() + self.items.items[i].host.as_str(),
+                Status::NotAvailable => "NotAvailable - ".to_string() + self.items.items[i].host.as_str(),
             }
         } else {
-            "Nothing to see here...".to_string()
+            "Please select the connection".to_string()
         };
 
         // We show the list item's info under the list in this paragraph
         let outer_info_block = Block::default()
             .borders(Borders::NONE)
             .fg(TEXT_COLOR)
-            .bg(TODO_HEADER_BG)
+            .bg(APP_HEADER_BG)
             .title("Connection info")
             .title_alignment(Alignment::Center);
         let inner_info_block = Block::default()
