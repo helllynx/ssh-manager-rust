@@ -81,7 +81,7 @@ struct App {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let file: String = fs::read_to_string("/store.json")?.parse()?;
+    let file: String = fs::read_to_string("data/store.json")?.parse()?;
     let connections: Vec<StoredConnection> = serde_json::from_str(&file).unwrap();
     // setup terminal
     init_error_hooks()?;
@@ -137,9 +137,14 @@ impl App {
             match self.items.items[i].status {
                 Status::Available => {
                     restore_terminal().unwrap();
-                    let output = if  !self.items.items[i].password.is_empty() {
-                        let ssh_command = format!("sshpass -p {} ssh {}@{} -p {}", self.items.items[i].password, self.items.items[i].user, self.items.items[i].host, self.items.items[i].port);
-
+                    let output = if !self.items.items[i].password.is_empty() {
+                        let ssh_command = format!(
+                            "sshpass -p {} ssh {}@{} -p {}",
+                            self.items.items[i].password,
+                            self.items.items[i].user,
+                            self.items.items[i].host,
+                            self.items.items[i].port
+                        );
                         Command::new("sh")
                             .arg("-c")
                             .arg(ssh_command)
@@ -154,11 +159,8 @@ impl App {
                     };
 
                     if let Some(exit_code) = output.status.code() {
-                        println!("status: {}", output.status);
-                        if exit_code == 0 {
-                            println!("Ok.");
-                        } else {
-                            eprintln!("Failed.");
+                        println!("{}", output.status);
+                        if exit_code != 0 {
                             println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
                         }
                     } else {
