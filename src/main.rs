@@ -141,7 +141,7 @@ impl App {
                     restore_terminal().unwrap();
                     let output = if !self.items.items[i].password.is_empty() {
                         let ssh_command = format!(
-                            "sshpass -p {} ssh {}@{} -p {}",
+                            "sshpass -p {} ssh -o StrictHostKeyChecking=no {}@{} -p {}",
                             self.items.items[i].password,
                             self.items.items[i].user,
                             self.items.items[i].host,
@@ -155,6 +155,7 @@ impl App {
                         Command::new("ssh")
                             .arg("-o ServerAliveInterval=15")
                             .arg("-o ServerAliveCountMax=3")
+                            .arg("-o StrictHostKeyChecking=no")
                             .arg(format!("{}@{}", self.items.items[i].user, self.items.items[i].host))
                             .arg(format!("-p {}", self.items.items[i].port))
                             .execute_output().unwrap()
