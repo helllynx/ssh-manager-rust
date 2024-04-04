@@ -65,8 +65,8 @@ struct StatefulList {
 struct StoredConnection {
     label: String,
     host: String,
-    port: String,
-    user: String,
+    port: Option<String>,
+    user: Option<String>,
     password: Option<String>,
 }
 
@@ -439,8 +439,8 @@ impl StatefulList {
             ConnectionItem {
                 label: item.label,
                 host: item.host,
-                port: item.port,
-                user: item.user,
+                port: item.port.unwrap_or("22".parse().unwrap()), // TODO maybe configure default port and default user
+                user: item.user.unwrap_or("root".parse().unwrap()),
                 password: if let Some(password) = item.password {
                     password
                 } else {
