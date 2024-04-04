@@ -385,6 +385,7 @@ fn render_footer(area: Rect, buf: &mut Buffer) {
 }
 
 
+// https://github.com/TheAwiteb/ratatui-textarea/blob/main/examples/single_line.rs
 fn ui(f: &mut Frame, app: &App) {
     let area = f.size();
 
