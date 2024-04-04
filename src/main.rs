@@ -78,6 +78,7 @@ struct StoredConnection {
 /// Check the drawing logic for items on how to specify the highlighting style for selected items.
 struct App {
     items: StatefulList,
+    new_item_popup: bool
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -128,6 +129,7 @@ impl App {
     fn new(connections: Vec<StoredConnection>) -> Self {
         Self {
             items: StatefulList::with_items(connections),
+            new_item_popup: false
         }
     }
 
@@ -220,7 +222,11 @@ impl App {
 impl App {
     fn run(&mut self, mut terminal: Terminal<impl Backend>) -> io::Result<()> {
         loop {
-            self.draw(&mut terminal)?;
+            if !self.new_item_popup {
+                self.draw_main_layout(&mut terminal)?;
+            } else {
+                self.draw_popup(&mut terminal)?;
+            }
 
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
@@ -234,6 +240,7 @@ impl App {
                         Char('f') => self.connect_sshfs(),
                         Char('g') => self.go_top(),
                         Char('G') => self.go_bottom(),
+                        Char('p') => self.new_item_popup = if self.new_item_popup {false} else {true},
                         _ => {}
                     }
                 }
@@ -241,8 +248,13 @@ impl App {
         }
     }
 
-    fn draw(&mut self, terminal: &mut Terminal<impl Backend>) -> io::Result<()> {
+    fn draw_main_layout(&mut self, terminal: &mut Terminal<impl Backend>) -> io::Result<()> {
         terminal.draw(|f| f.render_widget(self, f.size()))?;
+        Ok(())
+    }
+
+    fn draw_popup(&mut self, terminal: &mut Terminal<impl Backend>) -> io::Result<()> {
+        terminal.draw(|f| ui(f, &self))?;
         Ok(())
     }
 }
@@ -370,6 +382,55 @@ fn render_footer(area: Rect, buf: &mut Buffer) {
         .centered()
         .render(area, buf);
 }
+
+
+fn ui(f: &mut Frame, app: &App) {
+    let area = f.size();
+
+    let vertical = Layout::vertical([Constraint::Percentage(20), Constraint::Percentage(80)]);
+    let [instructions, content] = vertical.areas(area);
+
+    let text = if app.new_item_popup {
+        "Press p to close the popup"
+    } else {
+        "Press p to show the popup"
+    };
+    let paragraph = Paragraph::new(text.slow_blink())
+        .centered()
+        .wrap(Wrap { trim: true });
+    f.render_widget(paragraph, instructions);
+
+    let block = Block::default()
+        .title("Content")
+        .borders(Borders::ALL)
+        .on_blue();
+    f.render_widget(block, content);
+
+    if app.new_item_popup {
+        let block = Block::default().title("Popup").borders(Borders::ALL);
+        let area = centered_rect(60, 20, area);
+        f.render_widget(Clear, area); //this clears out the background
+        f.render_widget(block, area);
+    }
+}
+
+/// helper function to create a centered rect using up certain percentage of the available rect `r`
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::vertical([
+        Constraint::Percentage((100 - percent_y) / 2),
+        Constraint::Percentage(percent_y),
+        Constraint::Percentage((100 - percent_y) / 2),
+    ])
+        .split(r);
+
+    Layout::horizontal([
+        Constraint::Percentage((100 - percent_x) / 2),
+        Constraint::Percentage(percent_x),
+        Constraint::Percentage((100 - percent_x) / 2),
+    ])
+        .split(popup_layout[1])[1]
+}
+
 
 impl StatefulList {
     fn with_items(items: Vec<StoredConnection>) -> StatefulList {
