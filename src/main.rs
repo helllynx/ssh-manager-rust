@@ -28,8 +28,10 @@ use crossterm::{
 use execute::Execute;
 use ratatui::{prelude::*, style::palette::tailwind, widgets::*};
 use serde::{Deserialize, Serialize};
+use model::{StatefulList, StoredConnection, Status, Config, ConnectionItem};
 
 mod utils;
+mod model;
 
 const APP_HEADER_BG: Color = tailwind::BLACK;
 const NORMAL_ROW_COLOR: Color = tailwind::SLATE.c950;
@@ -37,38 +39,6 @@ const ALT_ROW_COLOR: Color = tailwind::SLATE.c900;
 const SELECTED_STYLE_FG: Color = tailwind::YELLOW.c700;
 const TEXT_COLOR: Color = tailwind::SLATE.c200;
 const NOT_AVAILABLE_TEXT_COLOR: Color = tailwind::RED.c500;
-
-#[derive(Copy, Clone)]
-enum Status {
-    Available,
-    NotAvailable,
-}
-
-struct ConnectionItem {
-    label: String,
-    host: String,
-    port: String,
-    user: String,
-    password: String,
-    details: String,
-    status: Status,
-}
-
-struct StatefulList {
-    state: ListState,
-    items: Vec<ConnectionItem>,
-    last_selected: Option<usize>,
-}
-
-
-#[derive(Serialize, Deserialize)]
-struct StoredConnection {
-    label: String,
-    host: String,
-    port: Option<String>,
-    user: Option<String>,
-    password: Option<String>,
-}
 
 /// This struct holds the current state of the app. In particular, it has the `items` field which is
 /// a wrapper around `ListState`. Keeping track of the items state let us render the associated
@@ -82,7 +52,8 @@ struct App {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let file: String = fs::read_to_string("data/store.json")?.parse()?;
+    let cfg: Config = confy::load_path("config.toml")?;
+    let file: String = fs::read_to_string(cfg.path_to_data_json)?.parse()?;
     let connections: Vec<StoredConnection> = serde_json::from_str(&file).unwrap();
     // setup terminal
     init_error_hooks()?;
