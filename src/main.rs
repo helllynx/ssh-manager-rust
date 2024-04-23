@@ -20,15 +20,13 @@ use std::process::Command;
 use std::process::exit;
 
 use color_eyre::config::HookBuilder;
-use crossterm::{
-    event::{self, Event, KeyCode, KeyEventKind},
-    ExecutableCommand,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
+use crossterm::{event::{self, Event, KeyCode, KeyEventKind}, ExecutableCommand, terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen}};
+use crossterm::cursor::{EnableBlinking, Hide, SetCursorStyle, Show};
 use execute::Execute;
 use ratatui::{prelude::*, style::palette::tailwind, widgets::*};
 use serde::{Deserialize, Serialize};
-use model::{StatefulList, StoredConnection, Status, Config, ConnectionItem};
+
+use model::{Config, ConnectionItem, StatefulList, Status, StoredConnection};
 
 mod utils;
 mod model;
@@ -48,7 +46,7 @@ const NOT_AVAILABLE_TEXT_COLOR: Color = tailwind::RED.c500;
 /// Check the drawing logic for items on how to specify the highlighting style for selected items.
 struct App {
     items: StatefulList,
-    new_item_popup: bool
+    new_item_popup: bool,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -96,11 +94,21 @@ fn restore_terminal() -> color_eyre::Result<()> {
     Ok(())
 }
 
+fn enable_cursor() {
+    stdout().execute(Show).unwrap();
+    stdout().execute(EnableBlinking).unwrap();
+    stdout().execute(SetCursorStyle::BlinkingBar).unwrap();
+}
+
+fn disable_cursor() {
+    stdout().execute(Hide).unwrap();
+}
+
 impl App {
     fn new(connections: Vec<StoredConnection>) -> Self {
         Self {
             items: StatefulList::with_items(connections),
-            new_item_popup: false
+            new_item_popup: false,
         }
     }
 
@@ -110,6 +118,7 @@ impl App {
             match self.items.items[i].status {
                 Status::Available => {
                     restore_terminal().unwrap();
+                    enable_cursor();
                     let output = if !self.items.items[i].password.is_empty() {
                         let ssh_command = format!(
                             "sshpass -p {} ssh -o StrictHostKeyChecking=no {}@{} -p {}",
@@ -145,6 +154,7 @@ impl App {
                 Status::NotAvailable => {}
             }
         }
+        disable_cursor();
     }
 
     fn connect_sshfs(&mut self) {
@@ -212,7 +222,7 @@ impl App {
                         Char('f') => self.connect_sshfs(),
                         Char('g') => self.go_top(),
                         Char('G') => self.go_bottom(),
-                        Char('p') => self.new_item_popup = if self.new_item_popup {false} else {true},
+                        Char('p') => self.new_item_popup = if self.new_item_popup { false } else { true },
                         _ => {}
                     }
                 }

@@ -36,6 +36,7 @@ pub(crate) struct StoredConnection {
     pub(crate) user: Option<String>,
     pub(crate) password: Option<String>,
 }
+
 #[derive(Copy, Clone)]
 pub(crate) enum Status {
     Available,
