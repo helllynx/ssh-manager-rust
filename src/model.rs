@@ -37,6 +37,19 @@ pub(crate) struct StoredConnection {
     pub(crate) password: Option<String>,
 }
 
+
+impl StoredConnection {
+    pub(crate) fn new() -> Self {
+        Self {
+            label: String::new(),
+            host: String::new(),
+            port: Option::from(String::from("22")), // Default port
+            user: Option::from(String::new()),
+            password: Option::from(String::new()),
+        }
+    }
+}
+
 #[derive(Copy, Clone)]
 pub(crate) enum Status {
     Available,

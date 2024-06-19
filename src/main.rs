@@ -50,6 +50,7 @@ const NOT_AVAILABLE_TEXT_COLOR: Color = tailwind::RED.c500;
 struct App {
     items: StatefulList,
     new_item_popup: bool,
+    new_connection: StoredConnection,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -112,6 +113,7 @@ impl App {
         Self {
             items: StatefulList::with_items(connections),
             new_item_popup: false,
+            new_connection: StoredConnection::new(),
         }
     }
 
@@ -225,11 +227,31 @@ impl App {
                         Char('f') => self.connect_sshfs(),
                         Char('g') => self.go_top(),
                         Char('G') => self.go_bottom(),
-                        Char('p') => self.new_item_popup = if self.new_item_popup { false } else { true },
-                        _ => {}
+                        Char('p') => self.new_item_popup = !self.new_item_popup,
+                        _ => {
+                            if self.new_item_popup {
+                                self.handle_new_connection_input(key.code);
+                            }
+                        }
                     }
                 }
             }
+        }
+    }
+
+    fn handle_new_connection_input(&mut self, code: KeyCode) {
+        match code {
+            KeyCode::Char(c) => {
+                // Add character to the corresponding field
+                // Here you would implement logic to determine which field is currently active
+                self.new_connection.label.push(c); // Example for label field
+            }
+            KeyCode::Backspace => {
+                // Remove character from the corresponding field
+                // Implement logic to determine which field is currently active
+                self.new_connection.label.pop(); // Example for label field
+            }
+            _ => {}
         }
     }
 
@@ -239,7 +261,7 @@ impl App {
     }
 
     fn draw_popup(&mut self, terminal: &mut Terminal<impl Backend>) -> io::Result<()> {
-        terminal.draw(|f| ui(f, &self))?;
+        terminal.draw(|f| add_new_connection_ui(f, &self))?;
         Ok(())
     }
 }
@@ -370,7 +392,7 @@ fn render_footer(area: Rect, buf: &mut Buffer) {
 
 
 // https://github.com/TheAwiteb/ratatui-textarea/blob/main/examples/single_line.rs
-fn ui(f: &mut Frame, app: &App) {
+fn add_new_connection_ui(f: &mut Frame, app: &App) {
     let area = f.size();
 
     let vertical = Layout::vertical([Constraint::Percentage(20), Constraint::Percentage(80)]);
