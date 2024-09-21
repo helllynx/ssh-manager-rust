@@ -16,8 +16,10 @@
 #![allow(clippy::enum_glob_use, clippy::wildcard_imports)]
 
 use std::{error::Error, fs, io, io::stdout};
+use std::net::IpAddr;
 use std::process::Command;
 use std::process::exit;
+use std::time::Duration;
 
 use color_eyre::config::HookBuilder;
 use crossterm::{event::{self, Event, KeyCode, KeyEventKind}, ExecutableCommand, terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen}};
@@ -27,6 +29,7 @@ use ratatui::{prelude::*, style::palette::tailwind, widgets::*};
 use serde::{Deserialize, Serialize};
 
 use model::{Config, ConnectionItem, StatefulList, Status, StoredConnection};
+use rand::random;
 
 mod utils;
 mod model;
@@ -50,7 +53,7 @@ struct App {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let cfg: Config = confy::load_path("config.toml")?;
+    let cfg: Config = confy::load_path("/home/zybc/Code/ssh-manager-rust/config.toml")?;
     let file: String = fs::read_to_string(cfg.path_to_data_json)?.parse()?;
     let connections: Vec<StoredConnection> = serde_json::from_str(&file).unwrap();
     // setup terminal
@@ -476,8 +479,32 @@ impl StatefulList {
     }
 }
 
+
+fn ping_host(ip: &str) -> bool {
+    let output = if cfg!(target_os = "windows") {
+        Command::new("ping")
+            .arg("-n")
+            .arg("1")
+            .arg(ip)
+            .output()
+    } else {
+        Command::new("ping")
+            .arg("-c")
+            .arg("1")
+            .arg(ip)
+            .output()
+    };
+
+    match output {
+        Ok(output) => output.status.success(),
+        Err(_) => false,
+    }
+}
+
+
 impl ConnectionItem {
     fn to_list_item(&self, index: usize) -> ListItem {
+        ping_host(&self.host);
         let bg_color = match index % 2 {
             0 => NORMAL_ROW_COLOR,
             _ => ALT_ROW_COLOR,
