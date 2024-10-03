@@ -16,7 +16,10 @@ struct App {
 fn main() -> Result<(), Box<dyn Error>> {
     let cfg: Config = confy::load_path("/home/yenqw/Code/ssh-manager-rust/config.toml")?;
     let file: String = fs::read_to_string(cfg.path_to_data_json)?.parse()?;
-    let connections: Vec<StoredConnection> = serde_json::from_str(&file).unwrap();
+    let mut connections: Vec<StoredConnection> = serde_json::from_str(&file).unwrap();
+    // sort by label
+    connections.sort_by_key(|conn| conn.label.clone());
+
     // setup terminal
     init_error_hooks()?;
     let terminal = init_terminal()?;
