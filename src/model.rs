@@ -1,5 +1,8 @@
-use ratatui::widgets::ListState;
+use ratatui::prelude::Line;
+use ratatui::style::Stylize;
+use ratatui::widgets::{ListItem, ListState};
 use serde::{Deserialize, Serialize};
+use crate::ui::style::{ALT_ROW_COLOR, NORMAL_ROW_COLOR, NOT_AVAILABLE_TEXT_COLOR, TEXT_COLOR};
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub(crate) struct Config {
@@ -21,6 +24,36 @@ pub(crate) struct ConnectionItem {
     pub(crate) details: String,
     pub(crate) status: Status,
 }
+
+impl ConnectionItem {
+    pub(crate) fn to_list_item(&self, index: usize) -> ListItem {
+        let bg_color = match index % 2 {
+            0 => NORMAL_ROW_COLOR,
+            _ => ALT_ROW_COLOR,
+        };
+        let line = match self.status {
+            Status::Available => Line::styled(format!(" > {} {}", self.label, self.host), TEXT_COLOR),
+            Status::NotAvailable => Line::styled(
+                format!(" X {} {}", self.label, self.host),
+                (NOT_AVAILABLE_TEXT_COLOR, bg_color),
+            ),
+        };
+
+        ListItem::new(line).bg(bg_color)
+    }
+
+    pub(crate) fn display(&self) -> String {
+        let info = format!(
+            "label: {}\n\
+             host: {}\n\
+             port: {}\n\
+             user: {}\n\
+             details: {}\n",
+            self.label, self.host, self.port, self.user, self.details);
+        info
+    }
+}
+
 
 pub(crate) struct StatefulList {
     pub(crate) state: ListState,

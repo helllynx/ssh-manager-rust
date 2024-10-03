@@ -442,32 +442,3 @@ impl StatefulList {
         *self.state.offset_mut() = offset;
     }
 }
-
-impl ConnectionItem {
-    fn to_list_item(&self, index: usize) -> ListItem {
-        let bg_color = match index % 2 {
-            0 => NORMAL_ROW_COLOR,
-            _ => ALT_ROW_COLOR,
-        };
-        let line = match self.status {
-            Status::Available => Line::styled(format!(" > {} {}", self.label, self.host), TEXT_COLOR),
-            Status::NotAvailable => Line::styled(
-                format!(" X {} {}", self.label, self.host),
-                (NOT_AVAILABLE_TEXT_COLOR, bg_color),
-            ),
-        };
-
-        ListItem::new(line).bg(bg_color)
-    }
-
-    fn display(&self) -> String {
-        let info = format!(
-            "label: {}\n\
-             host: {}\n\
-             port: {}\n\
-             user: {}\n\
-             details: {}\n",
-            self.label, self.host, self.port, self.user, self.details);
-        return info;
-    }
-}
