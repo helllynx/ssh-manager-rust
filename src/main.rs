@@ -1,11 +1,6 @@
-use crossterm::ExecutableCommand;
-use execute::Execute;
-use ratatui::{prelude::*, widgets::*};
-use serde::{Deserialize, Serialize};
 use std::{error::Error, fs};
-
+use crate::model::model::{Config, StatefulList, StoredConnection};
 use crate::terminal::{init_error_hooks, init_terminal, restore_terminal};
-use model::{Config, StatefulList, StoredConnection};
 
 mod utils;
 mod model;
