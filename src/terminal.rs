@@ -3,12 +3,13 @@ use std::process::Command;
 use std::{fs, io, io::stdout};
 
 use crate::ui::style::{APP_HEADER_BG, NORMAL_ROW_COLOR, SELECTED_STYLE_FG, TEXT_COLOR};
-use crate::{utils, App};
+use crate::{utils};
 use color_eyre::config::HookBuilder;
 use crossterm::cursor::{EnableBlinking, Hide, SetCursorStyle, Show};
 use crossterm::{event::{self, Event, KeyCode, KeyEventKind}, terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen}, ExecutableCommand};
 use execute::Execute;
 use ratatui::{prelude::*, widgets::*};
+use crate::app::App;
 use crate::model::model::{ConnectionItem, StatefulList, Status, StoredConnection};
 
 pub(crate) fn init_error_hooks() -> color_eyre::Result<()> {
@@ -60,7 +61,7 @@ impl App {
     }
 
     /// Changes the status of the selected list item
-    fn connect_ssh(&mut self) {
+    pub(crate) fn connect_ssh(&mut self) {
         if let Some(i) = self.items.state.selected() {
             match self.items.items[i].status {
                 Status::Available => {
@@ -104,7 +105,7 @@ impl App {
         disable_cursor();
     }
 
-    fn connect_sshfs(&mut self) {
+    pub(crate) fn connect_sshfs(&mut self) {
         if let Some(i) = self.items.state.selected() {
             match self.items.items[i].status {
                 Status::Available => {
@@ -139,72 +140,12 @@ impl App {
         }
     }
 
-    fn go_top(&mut self) {
+    pub(crate) fn go_top(&mut self) {
         self.items.state.select(Some(0));
     }
 
-    fn go_bottom(&mut self) {
+    pub(crate) fn go_bottom(&mut self) {
         self.items.state.select(Some(self.items.items.len() - 1));
-    }
-}
-
-impl App {
-    pub(crate) fn run(&mut self, mut terminal: Terminal<impl Backend>) -> io::Result<()> {
-        loop {
-            if !self.new_item_popup {
-                self.draw_main_layout(&mut terminal)?;
-            } else {
-                self.draw_popup(&mut terminal)?;
-            }
-
-            if let Event::Key(key) = event::read()? {
-                if key.kind == KeyEventKind::Press {
-                    use KeyCode::*;
-                    match key.code {
-                        Char('q') | Esc => return Ok(()),
-                        Char('h') | Left => self.items.unselect(),
-                        Char('j') | Down => self.items.next(),
-                        Char('k') | Up => self.items.previous(),
-                        Char('l') | Right | Enter => self.connect_ssh(),
-                        Char('f') => self.connect_sshfs(),
-                        Char('g') => self.go_top(),
-                        Char('G') => self.go_bottom(),
-                        Char('p') => self.new_item_popup = !self.new_item_popup,
-                        _ => {
-                            if self.new_item_popup {
-                                self.handle_new_connection_input(key.code);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    fn handle_new_connection_input(&mut self, code: KeyCode) {
-        match code {
-            KeyCode::Char(c) => {
-                // Add character to the corresponding field
-                // Here you would implement logic to determine which field is currently active
-                self.new_connection.label.push(c); // Example for label field
-            }
-            KeyCode::Backspace => {
-                // Remove character from the corresponding field
-                // Implement logic to determine which field is currently active
-                self.new_connection.label.pop(); // Example for label field
-            }
-            _ => {}
-        }
-    }
-
-    fn draw_main_layout(&mut self, terminal: &mut Terminal<impl Backend>) -> io::Result<()> {
-        terminal.draw(|f| f.render_widget(self, f.size()))?;
-        Ok(())
-    }
-
-    fn draw_popup(&mut self, terminal: &mut Terminal<impl Backend>) -> io::Result<()> {
-        terminal.draw(|f| add_new_connection_ui(f, &self))?;
-        Ok(())
     }
 }
 
@@ -334,7 +275,7 @@ fn render_footer(area: Rect, buf: &mut Buffer) {
 
 
 // https://github.com/TheAwiteb/ratatui-textarea/blob/main/examples/single_line.rs
-fn add_new_connection_ui(f: &mut Frame, app: &App) {
+pub(crate) fn add_new_connection_ui(f: &mut Frame, app: &App) {
     let area = f.size();
 
     let vertical = Layout::vertical([Constraint::Percentage(20), Constraint::Percentage(80)]);
@@ -407,7 +348,7 @@ impl StatefulList {
         }
     }
 
-    fn next(&mut self) {
+    pub(crate) fn next(&mut self) {
         let i = match self.state.selected() {
             Some(i) => {
                 if i >= self.items.len() - 1 {
@@ -421,7 +362,7 @@ impl StatefulList {
         self.state.select(Some(i));
     }
 
-    fn previous(&mut self) {
+    pub(crate) fn previous(&mut self) {
         let i = match self.state.selected() {
             Some(i) => {
                 if i == 0 {
@@ -435,7 +376,7 @@ impl StatefulList {
         self.state.select(Some(i));
     }
 
-    fn unselect(&mut self) {
+    pub(crate) fn unselect(&mut self) {
         let offset = self.state.offset();
         self.last_selected = self.state.selected();
         self.state.select(None);
