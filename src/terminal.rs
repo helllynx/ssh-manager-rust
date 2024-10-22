@@ -57,6 +57,7 @@ impl App {
             items: StatefulList::with_items(connections),
             new_item_popup: false,
             new_connection: StoredConnection::new(),
+            input_mode: InputMode::Label,
         }
     }
 
@@ -278,30 +279,73 @@ fn render_footer(area: Rect, buf: &mut Buffer) {
 pub(crate) fn add_new_connection_ui(f: &mut Frame, app: &App) {
     let area = f.size();
 
-    let vertical = Layout::vertical([Constraint::Percentage(20), Constraint::Percentage(80)]);
+    let vertical = Layout::vertical([Constraint::Percentage(10), Constraint::Percentage(80)]);
     let [instructions, content] = vertical.areas(area);
 
     let text = if app.new_item_popup {
-        "Press p to close the popup"
+        "Press Enter to save, Esc to cancel"
     } else {
-        "Press p to show the popup"
+        "Press p to add new connection"
     };
-    let paragraph = Paragraph::new(text.slow_blink())
+    let paragraph = Paragraph::new(text)
         .centered()
         .wrap(Wrap { trim: true });
     f.render_widget(paragraph, instructions);
 
-    let block = Block::default()
-        .title("Content")
-        .borders(Borders::ALL)
-        .on_blue();
-    f.render_widget(block, content);
-
     if app.new_item_popup {
-        let block = Block::default().title("Popup").borders(Borders::ALL);
-        let area = centered_rect(60, 20, area);
-        f.render_widget(Clear, area); //this clears out the background
-        f.render_widget(block, area);
+        let block = Block::default().title("New Connection").borders(Borders::ALL);
+        let area = centered_rect(60, 50, area);
+        f.render_widget(Clear, area); // clear background for popup
+
+        let input_layout = Layout::vertical([
+            Constraint::Percentage(15),
+            Constraint::Percentage(15),
+            Constraint::Percentage(15),
+            Constraint::Percentage(15),
+            Constraint::Percentage(15),
+        ])
+            .split(area);
+
+        // Render input fields
+        let label_field = Paragraph::new(app.new_connection.label.to_string())
+            .block(Block::default().title("Label").borders(Borders::ALL))
+            .style(match app.input_mode {
+                InputMode::Label => Style::default().fg(Color::Yellow),
+                _ => Style::default(),
+            });
+        f.render_widget(label_field, input_layout[0]);
+
+        let host_field = Paragraph::new(app.new_connection.host.as_str())
+            .block(Block::default().title("Host").borders(Borders::ALL))
+            .style(match app.input_mode {
+                InputMode::Host => Style::default().fg(Color::Yellow),
+                _ => Style::default(),
+            });
+        f.render_widget(host_field, input_layout[1]);
+
+        let port_field = Paragraph::new(app.new_connection.port.as_ref().unwrap().to_string())
+            .block(Block::default().title("Port").borders(Borders::ALL))
+            .style(match app.input_mode {
+                InputMode::Port => Style::default().fg(Color::Yellow),
+                _ => Style::default(),
+            });
+        f.render_widget(port_field, input_layout[2]);
+
+        let user_field = Paragraph::new(app.new_connection.user.as_ref().unwrap().to_string())
+            .block(Block::default().title("User").borders(Borders::ALL))
+            .style(match app.input_mode {
+                InputMode::User => Style::default().fg(Color::Yellow),
+                _ => Style::default(),
+            });
+        f.render_widget(user_field, input_layout[3]);
+
+        let password_field = Paragraph::new(app.new_connection.password.as_ref().unwrap().to_string())
+            .block(Block::default().title("Password").borders(Borders::ALL))
+            .style(match app.input_mode {
+                InputMode::Password => Style::default().fg(Color::Yellow),
+                _ => Style::default(),
+            });
+        f.render_widget(password_field, input_layout[4]);
     }
 }
 
@@ -382,4 +426,13 @@ impl StatefulList {
         self.state.select(None);
         *self.state.offset_mut() = offset;
     }
+}
+
+#[derive(Copy, Clone)]
+pub(crate) enum InputMode {
+    Label,
+    Host,
+    Port,
+    User,
+    Password,
 }

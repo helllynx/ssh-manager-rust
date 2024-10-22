@@ -5,11 +5,13 @@ use crossterm::event::KeyCode::{Char, Down, Enter, Esc, Left, Right, Up};
 use ratatui::backend::Backend;
 use ratatui::Terminal;
 use crate::model::model::{StatefulList, StoredConnection};
+use crate::terminal::InputMode;
 
 pub(crate) struct App {
     pub(crate) items: StatefulList,
     pub(crate) new_item_popup: bool,
     pub(crate) new_connection: StoredConnection,
+    pub(crate) input_mode: InputMode
 }
 
 impl App {
@@ -48,17 +50,79 @@ impl App {
     fn handle_new_connection_input(&mut self, code: KeyCode) {
         match code {
             KeyCode::Char(c) => {
-                // Add character to the corresponding field
-                // Here you would implement logic to determine which field is currently active
-                self.new_connection.label.push(c); // Example for label field
+                match self.input_mode {
+                    InputMode::Label => self.new_connection.label.push(c),
+                    InputMode::Host => self.new_connection.host.push(c),
+                    InputMode::Port => {
+                        if self.new_connection.port.is_none() {
+                            self.new_connection.port = Some(String::new());
+                        }
+                        if let Some(port) = self.new_connection.port.as_mut() {
+                            port.push(c);
+                        }
+                    }
+                    InputMode::User => {
+                        if self.new_connection.user.is_none() {
+                            self.new_connection.user = Some(String::new());
+                        }
+                        if let Some(user) = self.new_connection.user.as_mut() {
+                            user.push(c);
+                        }
+                    }
+                    InputMode::Password => {
+                        if self.new_connection.password.is_none() {
+                            self.new_connection.password = Some(String::new());
+                        }
+                        if let Some(password) = self.new_connection.password.as_mut() {
+                            password.push(c);
+                        }
+                    }
+                }
             }
             KeyCode::Backspace => {
-                // Remove character from the corresponding field
-                // Implement logic to determine which field is currently active
-                self.new_connection.label.pop(); // Example for label field
+                match self.input_mode {
+                    InputMode::Label => { self.new_connection.label.pop(); }
+                    InputMode::Host => { self.new_connection.host.pop(); }
+                    InputMode::Port => {
+                        if let Some(port) = self.new_connection.port.as_mut() {
+                            port.pop();
+                        }
+                    }
+                    InputMode::User => {
+                        if let Some(user) = self.new_connection.user.as_mut() {
+                            user.pop();
+                        }
+                    }
+                    InputMode::Password => {
+                        if let Some(password) = self.new_connection.password.as_mut() {
+                            password.pop();
+                        }
+                    }
+                }
+            }
+            KeyCode::Tab => {
+                // Switch between input fields
+                self.input_mode = match self.input_mode {
+                    InputMode::Label => InputMode::Host,
+                    InputMode::Host => InputMode::Port,
+                    InputMode::Port => InputMode::User,
+                    InputMode::User => InputMode::Password,
+                    InputMode::Password => InputMode::Label,
+                };
+            }
+            KeyCode::Enter => {
+                // Save the connection (implement the saving logic)
+                self.save_connection();
             }
             _ => {}
         }
+    }
+
+
+
+    fn save_connection(&self) {
+        // Implement the logic to save the connection
+        // You can use `self.new_connection` to get the input data
     }
 
     fn draw_main_layout(&mut self, terminal: &mut Terminal<impl Backend>) -> io::Result<()> {
