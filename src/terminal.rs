@@ -368,7 +368,7 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 
 
 impl StatefulList {
-    fn with_items(items: Vec<StoredConnection>) -> StatefulList {
+    pub(crate) fn with_items(items: Vec<StoredConnection>) -> StatefulList {
         let a = items.into_iter().map(|item|
             ConnectionItem {
                 label: item.label,

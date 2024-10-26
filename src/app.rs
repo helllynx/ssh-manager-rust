@@ -26,38 +26,36 @@ impl App {
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
                     use KeyCode::*;
-                    match key.code {
-                        Char('q') | Esc => {
-                            if self.new_item_popup {
+
+                    // Если popout открыт, обрабатываем только Esc, Enter или ввод данных
+                    if self.new_item_popup {
+                        match key.code {
+                            Esc => {
                                 self.new_item_popup = false;
-                            } else {
-                                return Ok(())
                             }
-                        }
-                        Char('h') | Left => self.items.unselect(),
-                        Char('j') | Down => self.items.next(),
-                        Char('k') | Up => self.items.previous(),
-                        Char('l') | Right => {
-                            if !self.new_item_popup {
-                                self.connect_ssh();
-                            }
-                        }
-                        Char('f') => self.connect_sshfs(),
-                        Char('g') => self.go_top(),
-                        Char('G') => self.go_bottom(),
-                        Char('n') => self.new_item_popup = !self.new_item_popup,
-                        Enter => {
-                            if self.new_item_popup {
+                            Enter => {
                                 self.save_connection(&cfg.path_to_data_json);
                                 self.new_item_popup = false;
-                            } else {
-                                self.connect_ssh();
                             }
-                        }
-                        _ => {
-                            if self.new_item_popup {
+                            _ => {
+                                // Остальные нажатия передаем в обработчик handle_new_connection_input
                                 self.handle_new_connection_input(key.code);
                             }
+                        }
+                    } else {
+                        // Если popout закрыт, обрабатываем остальные события
+                        match key.code {
+                            Char('q') | Esc => return Ok(()),
+                            Char('h') | Left => self.items.unselect(),
+                            Char('j') | Down => self.items.next(),
+                            Char('k') | Up => self.items.previous(),
+                            Char('l') | Right => self.connect_ssh(),
+                            Char('f') => self.connect_sshfs(),
+                            Char('g') => self.go_top(),
+                            Char('G') => self.go_bottom(),
+                            Char('n') => self.new_item_popup = !self.new_item_popup,
+                            Enter => self.connect_ssh(),
+                            _ => {}
                         }
                     }
                 }
@@ -132,9 +130,22 @@ impl App {
         }
     }
 
-    fn save_connection(&self, string: &String) {
-        if let Err(e) = append_json_to_file(&self.new_connection, string) {
+    fn save_connection(&mut self, path: &String) {
+        if let Err(e) = append_json_to_file(&self.new_connection, path) {
             eprintln!("Failed to write to file: {}", e);
+            return;
+        }
+
+        if let Ok(content) = std::fs::read_to_string(path) {
+            match serde_json::from_str(&content) {
+                Ok(items) => {
+                    self.items = StatefulList::with_items(items);
+                    self.new_connection = StoredConnection::new()
+                },
+                Err(e) => eprintln!("Failed to parse JSON: {}", e),
+            }
+        } else {
+            eprintln!("Failed to read file: {}", path);
         }
     }
 
