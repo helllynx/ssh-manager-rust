@@ -56,6 +56,7 @@ impl App {
         Self {
             items: StatefulList::with_items(connections),
             new_item_popup: false,
+            is_edit_mode: false,
             new_connection: StoredConnection::new(),
             input_mode: InputMode::Label,
         }

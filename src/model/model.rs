@@ -17,6 +17,7 @@ pub(crate) struct Config {
 //     }
 // }
 
+#[derive(Clone)]
 pub(crate) struct ConnectionItem {
     pub(crate) label: String,
     pub(crate) host: String,
@@ -70,18 +71,20 @@ pub(crate) struct StoredConnection {
     pub(crate) port: Option<String>,
     pub(crate) user: Option<String>,
     pub(crate) password: Option<String>,
+    pub(crate) details: Option<String>,
 }
 
 impl Display for StoredConnection {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Label: {}, Host: {}, Port: {}, User: {}, Password: {}",
+            "Label: {}, Host: {}, Port: {}, User: {}, Password: {}, Details: {}",
             self.label,
             self.host,
             self.port.as_deref().unwrap_or("None"),
             self.user.as_deref().unwrap_or("None"),
-            self.password.as_deref().unwrap_or("None")
+            self.password.as_deref().unwrap_or("None"),
+            self.details.as_deref().unwrap_or("None"),
         )
     }
 }
@@ -91,9 +94,10 @@ impl StoredConnection {
         Self {
             label: String::new(),
             host: String::new(),
-            port: Option::from(String::from("22")), // Default port
+            port: Option::from(String::from("22")),
             user: Option::from(String::new()),
             password: Option::from(String::new()),
+            details: Option::from(String::new()),
         }
     }
 }
@@ -102,4 +106,31 @@ impl StoredConnection {
 pub(crate) enum Status {
     Available,
     NotAvailable,
+}
+
+impl From<StoredConnection> for ConnectionItem {
+    fn from(stored: StoredConnection) -> Self {
+        ConnectionItem {
+            label: stored.label,
+            host: stored.host,
+            port: stored.port.unwrap_or_else(|| "22".to_string()), // Если порт отсутствует, устанавливаем 22
+            user: stored.user.unwrap_or_else(String::new),
+            password: stored.password.unwrap_or_else(String::new),
+            details: stored.details.unwrap_or_else(String::new),
+            status: Status::Available, // Устанавливаем статус по умолчанию, можно изменить при необходимости
+        }
+    }
+}
+
+impl From<ConnectionItem> for StoredConnection {
+    fn from(connection: ConnectionItem) -> Self {
+        StoredConnection {
+            label: connection.label,
+            host: connection.host,
+            port: Some(connection.port),
+            user: Some(connection.user),
+            password: Some(connection.password),
+            details: Some(connection.details),
+        }
+    }
 }

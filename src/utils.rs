@@ -1,6 +1,8 @@
+use std::{fs, io};
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use serde::{Deserialize, Serialize};
+use crate::model::model::StoredConnection;
 
 pub(crate) fn remove_whitespace(s: &str) -> String {
     s.split_whitespace().collect::<String>()
@@ -41,6 +43,30 @@ pub(crate) fn append_json_to_file<T: Serialize + Clone + for<'de> Deserialize<'d
     let mut file = OpenOptions::new().write(true).truncate(true).open(file_path)?;
 
     // Write the JSON data to the file
+    file.write_all(json_data.as_bytes())?;
+    Ok(())
+}
+
+
+pub(crate) fn edit_connection_and_save(data: &StoredConnection, file_path: &str, host: &str) -> io::Result<()> {
+    // Чтение существующих данных из файла
+    let mut existing_data: Vec<StoredConnection> = match fs::read_to_string(file_path) {
+        Ok(file_content) => serde_json::from_str(&file_content).unwrap_or_else(|_| Vec::new()), // Пустой вектор, если файл пустой или не JSON
+        Err(_) => Vec::new(), // Пустой вектор, если файл не существует
+    };
+
+    // Найти и заменить соединение по `host`
+    if let Some(item) = existing_data.iter_mut().find(|item| item.host == host) {
+        *item = data.clone(); // Заменяем найденный элемент на новое значение
+    } else {
+        existing_data.push(data.clone()); // Если элемент не найден, добавляем его
+    }
+
+    // Сериализация данных в JSON с форматированием
+    let json_data = serde_json::to_string_pretty(&existing_data).expect("Failed to serialize data");
+
+    // Запись данных в файл
+    let mut file = OpenOptions::new().write(true).truncate(true).open(file_path)?;
     file.write_all(json_data.as_bytes())?;
     Ok(())
 }

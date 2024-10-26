@@ -5,11 +5,12 @@ use ratatui::backend::Backend;
 use ratatui::Terminal;
 use crate::model::model::{Config, StatefulList, StoredConnection};
 use crate::terminal::InputMode;
-use crate::utils::{append_json_to_file};
+use crate::utils::{append_json_to_file, edit_connection_and_save};
 
 pub(crate) struct App {
     pub(crate) items: StatefulList,
     pub(crate) new_item_popup: bool,
+    pub(crate) is_edit_mode: bool,
     pub(crate) new_connection: StoredConnection,
     pub(crate) input_mode: InputMode
 }
@@ -27,23 +28,24 @@ impl App {
                 if key.kind == KeyEventKind::Press {
                     use KeyCode::*;
 
-                    // Если popout открыт, обрабатываем только Esc, Enter или ввод данных
                     if self.new_item_popup {
                         match key.code {
                             Esc => {
                                 self.new_item_popup = false;
                             }
                             Enter => {
-                                self.save_connection(&cfg.path_to_data_json);
+                                if self.is_edit_mode {
+                                    self.edit_connection(&cfg.path_to_data_json);
+                                } else {
+                                    self.save_connection(&cfg.path_to_data_json);
+                                }
                                 self.new_item_popup = false;
                             }
                             _ => {
-                                // Остальные нажатия передаем в обработчик handle_new_connection_input
                                 self.handle_new_connection_input(key.code);
                             }
                         }
                     } else {
-                        // Если popout закрыт, обрабатываем остальные события
                         match key.code {
                             Char('q') | Esc => return Ok(()),
                             Char('h') | Left => self.items.unselect(),
@@ -54,6 +56,10 @@ impl App {
                             Char('g') => self.go_top(),
                             Char('G') => self.go_bottom(),
                             Char('n') => self.new_item_popup = !self.new_item_popup,
+                            Char('e') => {
+                                self.start_editing_connection();
+                                self.new_item_popup = true;
+                            },
                             Enter => self.connect_ssh(),
                             _ => {}
                         }
@@ -61,6 +67,23 @@ impl App {
                 }
             }
         }
+    }
+
+    pub(crate) fn start_editing_connection(&mut self) {
+        if let Some(selected) = self.items.state.selected() {
+            let current_connection = self.items.items[selected].clone();
+            self.new_connection = StoredConnection::from(current_connection);
+            self.is_edit_mode = true;
+        }
+    }
+
+    fn edit_connection(&mut self, path: &String) {
+        let host = self.new_connection.host.clone();
+        if let Err(e) = edit_connection_and_save(&self.new_connection, path, &host) {
+            eprintln!("Failed to replace data in file: {}", e);
+        }
+        self.new_connection = StoredConnection::new();
+        self.is_edit_mode = false;
     }
 
     fn handle_new_connection_input(&mut self, code: KeyCode) {
