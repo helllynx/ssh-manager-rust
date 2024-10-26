@@ -285,7 +285,7 @@ pub(crate) fn add_new_connection_ui(f: &mut Frame, app: &App) {
     let text = if app.new_item_popup {
         "Press Enter to save, Esc to cancel"
     } else {
-        "Press p to add new connection"
+        "Press n to add new connection"
     };
     let paragraph = Paragraph::new(text)
         .centered()
@@ -294,15 +294,15 @@ pub(crate) fn add_new_connection_ui(f: &mut Frame, app: &App) {
 
     if app.new_item_popup {
         let block = Block::default().title("New Connection").borders(Borders::ALL);
-        let area = centered_rect(60, 50, area);
+        let area = centered_rect(60, 80, area);
         f.render_widget(Clear, area); // clear background for popup
 
         let input_layout = Layout::vertical([
-            Constraint::Percentage(15),
-            Constraint::Percentage(15),
-            Constraint::Percentage(15),
-            Constraint::Percentage(15),
-            Constraint::Percentage(15),
+            Constraint::Length(3), // Increased height for better visibility
+            Constraint::Length(3),
+            Constraint::Length(3),
+            Constraint::Length(3),
+            Constraint::Length(3),
         ])
             .split(area);
 
@@ -323,7 +323,7 @@ pub(crate) fn add_new_connection_ui(f: &mut Frame, app: &App) {
             });
         f.render_widget(host_field, input_layout[1]);
 
-        let port_field = Paragraph::new(app.new_connection.port.as_ref().unwrap().to_string())
+        let port_field = Paragraph::new(app.new_connection.port.as_ref().unwrap_or(&"".to_string()).to_string())
             .block(Block::default().title("Port").borders(Borders::ALL))
             .style(match app.input_mode {
                 InputMode::Port => Style::default().fg(Color::Yellow),
@@ -331,7 +331,7 @@ pub(crate) fn add_new_connection_ui(f: &mut Frame, app: &App) {
             });
         f.render_widget(port_field, input_layout[2]);
 
-        let user_field = Paragraph::new(app.new_connection.user.as_ref().unwrap().to_string())
+        let user_field = Paragraph::new(app.new_connection.user.as_ref().unwrap_or(&"".to_string()).to_string())
             .block(Block::default().title("User").borders(Borders::ALL))
             .style(match app.input_mode {
                 InputMode::User => Style::default().fg(Color::Yellow),
@@ -339,7 +339,7 @@ pub(crate) fn add_new_connection_ui(f: &mut Frame, app: &App) {
             });
         f.render_widget(user_field, input_layout[3]);
 
-        let password_field = Paragraph::new(app.new_connection.password.as_ref().unwrap().to_string())
+        let password_field = Paragraph::new(app.new_connection.password.as_ref().unwrap_or(&"".to_string()).to_string())
             .block(Block::default().title("Password").borders(Borders::ALL))
             .style(match app.input_mode {
                 InputMode::Password => Style::default().fg(Color::Yellow),

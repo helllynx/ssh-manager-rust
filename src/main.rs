@@ -12,7 +12,7 @@ mod app;
 
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let cfg: Config = confy::load_path("/home/yenqw/Code/ssh-manager-rust/config.toml")?;
+    let cfg: Config = confy::load_path("/home/zybc/Code/ssh-manager-rust/config.toml")?;
     let file: String = fs::read_to_string(cfg.path_to_data_json)?.parse()?;
     let mut connections: Vec<StoredConnection> = serde_json::from_str(&file).unwrap();
     // sort by label

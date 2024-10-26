@@ -1,3 +1,5 @@
+use std::fmt;
+use std::fmt::{Display, Formatter};
 use ratatui::prelude::Line;
 use ratatui::style::Stylize;
 use ratatui::widgets::{ListItem, ListState};
@@ -70,6 +72,19 @@ pub(crate) struct StoredConnection {
     pub(crate) password: Option<String>,
 }
 
+impl Display for StoredConnection {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Label: {}, Host: {}, Port: {}, User: {}, Password: {}",
+            self.label,
+            self.host,
+            self.port.as_deref().unwrap_or("None"),
+            self.user.as_deref().unwrap_or("None"),
+            self.password.as_deref().unwrap_or("None")
+        )
+    }
+}
 
 impl StoredConnection {
     pub(crate) fn new() -> Self {

@@ -1,11 +1,11 @@
 use std::io;
 use crossterm::event;
 use crossterm::event::{Event, KeyCode, KeyEventKind};
-use crossterm::event::KeyCode::{Char, Down, Enter, Esc, Left, Right, Up};
 use ratatui::backend::Backend;
 use ratatui::Terminal;
 use crate::model::model::{StatefulList, StoredConnection};
 use crate::terminal::InputMode;
+use crate::utils::write_json_to_file;
 
 pub(crate) struct App {
     pub(crate) items: StatefulList,
@@ -27,15 +27,33 @@ impl App {
                 if key.kind == KeyEventKind::Press {
                     use KeyCode::*;
                     match key.code {
-                        Char('q') | Esc => return Ok(()),
+                        Char('q') | Esc => {
+                            if self.new_item_popup {
+                                self.new_item_popup = false;
+                            } else {
+                                return Ok(())
+                            }
+                        }
                         Char('h') | Left => self.items.unselect(),
                         Char('j') | Down => self.items.next(),
                         Char('k') | Up => self.items.previous(),
-                        Char('l') | Right | Enter => self.connect_ssh(),
+                        Char('l') | Right => {
+                            if !self.new_item_popup {
+                                self.connect_ssh();
+                            }
+                        }
                         Char('f') => self.connect_sshfs(),
                         Char('g') => self.go_top(),
                         Char('G') => self.go_bottom(),
-                        Char('p') => self.new_item_popup = !self.new_item_popup,
+                        Char('n') => self.new_item_popup = !self.new_item_popup,
+                        Enter => {
+                            if self.new_item_popup {
+                                self.save_connection();
+                                self.new_item_popup = false;
+                            } else {
+                                self.connect_ssh();
+                            }
+                        }
                         _ => {
                             if self.new_item_popup {
                                 self.handle_new_connection_input(key.code);
@@ -110,19 +128,14 @@ impl App {
                     InputMode::Password => InputMode::Label,
                 };
             }
-            KeyCode::Enter => {
-                // Save the connection (implement the saving logic)
-                self.save_connection();
-            }
             _ => {}
         }
     }
 
-
-
     fn save_connection(&self) {
-        // Implement the logic to save the connection
-        // You can use `self.new_connection` to get the input data
+        if let Err(e) = write_json_to_file(&self.new_connection, "connection.json") {
+            eprintln!("Failed to write to file: {}", e);
+        }
     }
 
     fn draw_main_layout(&mut self, terminal: &mut Terminal<impl Backend>) -> io::Result<()> {
