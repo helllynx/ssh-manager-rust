@@ -83,6 +83,7 @@ impl App {
             eprintln!("Failed to replace data in file: {}", e);
         }
         self.new_connection = StoredConnection::new();
+        self.reload_connections_from_file(path);
         self.is_edit_mode = false;
     }
 
@@ -158,7 +159,10 @@ impl App {
             eprintln!("Failed to write to file: {}", e);
             return;
         }
+        self.reload_connections_from_file(path)
+    }
 
+    fn reload_connections_from_file(&mut self, path: &String) {
         if let Ok(content) = std::fs::read_to_string(path) {
             match serde_json::from_str(&content) {
                 Ok(items) => {
