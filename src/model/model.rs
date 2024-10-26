@@ -113,11 +113,11 @@ impl From<StoredConnection> for ConnectionItem {
         ConnectionItem {
             label: stored.label,
             host: stored.host,
-            port: stored.port.unwrap_or_else(|| "22".to_string()), // Если порт отсутствует, устанавливаем 22
+            port: stored.port.unwrap_or_else(|| "22".to_string()),
             user: stored.user.unwrap_or_else(String::new),
             password: stored.password.unwrap_or_else(String::new),
             details: stored.details.unwrap_or_else(String::new),
-            status: Status::Available, // Устанавливаем статус по умолчанию, можно изменить при необходимости
+            status: Status::Available,
         }
     }
 }
