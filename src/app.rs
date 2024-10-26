@@ -3,9 +3,9 @@ use crossterm::event;
 use crossterm::event::{Event, KeyCode, KeyEventKind};
 use ratatui::backend::Backend;
 use ratatui::Terminal;
-use crate::model::model::{StatefulList, StoredConnection};
+use crate::model::model::{Config, StatefulList, StoredConnection};
 use crate::terminal::InputMode;
-use crate::utils::write_json_to_file;
+use crate::utils::{append_json_to_file};
 
 pub(crate) struct App {
     pub(crate) items: StatefulList,
@@ -15,7 +15,7 @@ pub(crate) struct App {
 }
 
 impl App {
-    pub(crate) fn run(&mut self, mut terminal: Terminal<impl Backend>) -> io::Result<()> {
+    pub(crate) fn run(&mut self, mut terminal: Terminal<impl Backend>, cfg: &Config) -> io::Result<()> {
         loop {
             if !self.new_item_popup {
                 self.draw_main_layout(&mut terminal)?;
@@ -48,7 +48,7 @@ impl App {
                         Char('n') => self.new_item_popup = !self.new_item_popup,
                         Enter => {
                             if self.new_item_popup {
-                                self.save_connection();
+                                self.save_connection(&cfg.path_to_data_json);
                                 self.new_item_popup = false;
                             } else {
                                 self.connect_ssh();
@@ -132,8 +132,8 @@ impl App {
         }
     }
 
-    fn save_connection(&self) {
-        if let Err(e) = write_json_to_file(&self.new_connection, "connection.json") {
+    fn save_connection(&self, string: &String) {
+        if let Err(e) = append_json_to_file(&self.new_connection, string) {
             eprintln!("Failed to write to file: {}", e);
         }
     }

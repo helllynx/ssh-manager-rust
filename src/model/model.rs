@@ -63,7 +63,7 @@ pub(crate) struct StatefulList {
     pub(crate) last_selected: Option<usize>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub(crate) struct StoredConnection {
     pub(crate) label: String,
     pub(crate) host: String,

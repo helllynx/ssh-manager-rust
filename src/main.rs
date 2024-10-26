@@ -13,7 +13,7 @@ mod app;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let cfg: Config = confy::load_path("/home/zybc/Code/ssh-manager-rust/config.toml")?;
-    let file: String = fs::read_to_string(cfg.path_to_data_json)?.parse()?;
+    let file: String = fs::read_to_string(cfg.path_to_data_json.clone())?.parse()?;
     let mut connections: Vec<StoredConnection> = serde_json::from_str(&file).unwrap();
     // sort by label
     connections.sort_by_key(|conn| conn.label.clone());
@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let terminal = init_terminal()?;
 
     // create app and run it
-    App::new(connections).run(terminal)?;
+    App::new(connections).run(terminal, &cfg)?;
 
     // restore default terminal
     restore_terminal()?;
