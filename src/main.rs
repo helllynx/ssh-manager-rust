@@ -1,14 +1,13 @@
-use std::{error::Error, fs};
 use crate::app::App;
-use crate::model::model::{Config, StatefulList, StoredConnection};
+use crate::model::model::{Config, StoredConnection};
 use crate::terminal::{init_error_hooks, init_terminal, restore_terminal};
+use std::{error::Error, fs};
 
 mod utils;
 mod model;
 mod terminal;
 mod ui;
 mod app;
-
 
 
 fn main() -> Result<(), Box<dyn Error>> {

@@ -1,10 +1,10 @@
-use std::fmt;
-use std::fmt::{Display, Formatter};
+use crate::ui::style::{ALT_ROW_COLOR, NORMAL_ROW_COLOR, NOT_AVAILABLE_TEXT_COLOR, TEXT_COLOR};
 use ratatui::prelude::Line;
 use ratatui::style::Stylize;
 use ratatui::widgets::{ListItem, ListState};
 use serde::{Deserialize, Serialize};
-use crate::ui::style::{ALT_ROW_COLOR, NORMAL_ROW_COLOR, NOT_AVAILABLE_TEXT_COLOR, TEXT_COLOR};
+use std::fmt;
+use std::fmt::{Display, Formatter};
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub(crate) struct Config {
@@ -17,7 +17,7 @@ pub(crate) struct Config {
 //     }
 // }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct ConnectionItem {
     pub(crate) label: String,
     pub(crate) host: String,
@@ -102,7 +102,7 @@ impl StoredConnection {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Serialize, Deserialize)]
 pub(crate) enum Status {
     Available,
     NotAvailable,

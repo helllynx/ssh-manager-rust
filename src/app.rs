@@ -1,18 +1,19 @@
-use std::io;
+use crate::model::model::{Config, StatefulList, StoredConnection};
+use crate::terminal::{centered_rect, InputMode};
+use crate::utils::{append_json_to_file, edit_connection_and_save, write_json_to_file};
 use crossterm::event;
 use crossterm::event::{Event, KeyCode, KeyEventKind};
 use ratatui::backend::Backend;
+use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap};
 use ratatui::Terminal;
-use crate::model::model::{Config, StatefulList, StoredConnection};
-use crate::terminal::InputMode;
-use crate::utils::{append_json_to_file, edit_connection_and_save};
+use std::io;
 
 pub(crate) struct App {
     pub(crate) items: StatefulList,
     pub(crate) new_item_popup: bool,
     pub(crate) is_edit_mode: bool,
     pub(crate) new_connection: StoredConnection,
-    pub(crate) input_mode: InputMode
+    pub(crate) input_mode: InputMode,
 }
 
 impl App {
@@ -59,7 +60,10 @@ impl App {
                             Char('e') => {
                                 self.start_editing_connection();
                                 self.new_item_popup = true;
-                            },
+                            }
+                            Char('d') => {
+                                self.confirm_deletion(&mut terminal, &cfg.path_to_data_json);
+                            }
                             Enter => self.connect_ssh(),
                             _ => {}
                         }
@@ -168,11 +172,63 @@ impl App {
                 Ok(items) => {
                     self.items = StatefulList::with_items(items);
                     self.new_connection = StoredConnection::new()
-                },
+                }
                 Err(e) => eprintln!("Failed to parse JSON: {}", e),
             }
         } else {
             eprintln!("Failed to read file: {}", path);
+        }
+    }
+
+    fn confirm_deletion<B: Backend>(&mut self, terminal: &mut Terminal<B>, path: &String) {
+        if let Some(selected) = self.items.state.selected() {
+            let connection = &self.items.items[selected];
+            let confirm_area = centered_rect(50, 20, terminal.size().unwrap());
+
+            let block = Block::default()
+                .title("Confirm Deletion")
+                .borders(Borders::ALL)
+                .border_type(BorderType::Plain);
+
+            let paragraph = Paragraph::new(format!(
+                "Are you sure you want to delete the connection '{}'? (y/n)",
+                connection.label
+            ))
+                .block(block)
+                .wrap(Wrap { trim: true });
+
+            terminal.draw(|f| {
+                f.render_widget(Clear, confirm_area); // Clear the area for the popup
+                f.render_widget(paragraph, confirm_area);
+            }).unwrap();
+
+            if let Event::Key(key) = event::read().unwrap() {
+                match key.code {
+                    KeyCode::Char('y') => {
+                        self.delete_connection(path, selected);
+                    }
+                    KeyCode::Char('n') => {
+                        self.draw_main_layout(terminal).unwrap();
+                    }
+                    _ => {
+                        self.draw_main_layout(terminal).unwrap();
+                    }
+                }
+            }
+        }
+    }
+
+    fn delete_connection(&mut self, path: &String, index: usize) {
+        self.items.items.remove(index);
+        if let Err(e) = write_json_to_file(&self.items.items, path) {
+            eprintln!("Failed to write to file: {}", e);
+        }
+        self.reload_connections_from_file(path);
+    }
+
+    fn save_all_connections(&self, path: &String) {
+        if let Err(e) = write_json_to_file(&self.items.items, path) {
+            eprintln!("Failed to write to file: {}", e);
         }
     }
 

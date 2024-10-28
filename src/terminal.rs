@@ -1,16 +1,16 @@
 use std::process::exit;
 use std::process::Command;
-use std::{fs, io, io::stdout};
+use std::{fs, io::stdout};
 
-use crate::ui::style::{APP_HEADER_BG, NORMAL_ROW_COLOR, SELECTED_STYLE_FG, TEXT_COLOR};
-use crate::{utils};
-use color_eyre::config::HookBuilder;
-use crossterm::cursor::{EnableBlinking, Hide, SetCursorStyle, Show};
-use crossterm::{event::{self, Event, KeyCode, KeyEventKind}, terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen}, ExecutableCommand};
-use execute::Execute;
-use ratatui::{prelude::*, widgets::*};
 use crate::app::App;
 use crate::model::model::{ConnectionItem, StatefulList, Status, StoredConnection};
+use crate::ui::style::{APP_HEADER_BG, NORMAL_ROW_COLOR, SELECTED_STYLE_FG, TEXT_COLOR};
+use crate::utils;
+use color_eyre::config::HookBuilder;
+use crossterm::cursor::{EnableBlinking, Hide, SetCursorStyle, Show};
+use crossterm::{terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen}, ExecutableCommand};
+use execute::Execute;
+use ratatui::{prelude::*, widgets::*};
 
 pub(crate) fn init_error_hooks() -> color_eyre::Result<()> {
     let (panic, error) = HookBuilder::default().into_hooks();
@@ -351,7 +351,7 @@ pub(crate) fn add_new_connection_ui(f: &mut Frame, app: &App) {
 }
 
 /// helper function to create a centered rect using up certain percentage of the available rect `r`
-fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+pub(crate) fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     let popup_layout = Layout::vertical([
         Constraint::Percentage((100 - percent_y) / 2),
         Constraint::Percentage(percent_y),

@@ -1,8 +1,8 @@
-use std::{fs, io};
+use crate::model::model::StoredConnection;
+use serde::{Deserialize, Serialize};
 use std::fs::{File, OpenOptions};
 use std::io::Write;
-use serde::{Deserialize, Serialize};
-use crate::model::model::StoredConnection;
+use std::{fs, io};
 
 pub(crate) fn remove_whitespace(s: &str) -> String {
     s.split_whitespace().collect::<String>()
