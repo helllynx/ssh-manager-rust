@@ -35,7 +35,9 @@ impl ConnectionItem {
             _ => ALT_ROW_COLOR,
         };
         let line = match self.status {
-            Status::Available => Line::styled(format!(" > {} {}", self.label, self.host), TEXT_COLOR),
+            Status::Available => {
+                Line::styled(format!(" > {} {}", self.label, self.host), TEXT_COLOR)
+            }
             Status::NotAvailable => Line::styled(
                 format!(" X {} {}", self.label, self.host),
                 (NOT_AVAILABLE_TEXT_COLOR, bg_color),
@@ -52,11 +54,11 @@ impl ConnectionItem {
              port: {}\n\
              user: {}\n\
              details: {}\n",
-            self.label, self.host, self.port, self.user, self.details);
+            self.label, self.host, self.port, self.user, self.details
+        );
         info
     }
 }
-
 
 pub(crate) struct StatefulList {
     pub(crate) state: ListState,

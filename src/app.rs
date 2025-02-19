@@ -17,7 +17,11 @@ pub(crate) struct App {
 }
 
 impl App {
-    pub(crate) fn run(&mut self, mut terminal: Terminal<impl Backend>, cfg: &Config) -> io::Result<()> {
+    pub(crate) fn run(
+        &mut self,
+        mut terminal: Terminal<impl Backend>,
+        cfg: &Config,
+    ) -> io::Result<()> {
         loop {
             if !self.new_item_popup {
                 self.draw_main_layout(&mut terminal)?;
@@ -93,57 +97,57 @@ impl App {
 
     fn handle_new_connection_input(&mut self, code: KeyCode) {
         match code {
-            KeyCode::Char(c) => {
-                match self.input_mode {
-                    InputMode::Label => self.new_connection.label.push(c),
-                    InputMode::Host => self.new_connection.host.push(c),
-                    InputMode::Port => {
-                        if self.new_connection.port.is_none() {
-                            self.new_connection.port = Some(String::new());
-                        }
-                        if let Some(port) = self.new_connection.port.as_mut() {
-                            port.push(c);
-                        }
+            KeyCode::Char(c) => match self.input_mode {
+                InputMode::Label => self.new_connection.label.push(c),
+                InputMode::Host => self.new_connection.host.push(c),
+                InputMode::Port => {
+                    if self.new_connection.port.is_none() {
+                        self.new_connection.port = Some(String::new());
                     }
-                    InputMode::User => {
-                        if self.new_connection.user.is_none() {
-                            self.new_connection.user = Some(String::new());
-                        }
-                        if let Some(user) = self.new_connection.user.as_mut() {
-                            user.push(c);
-                        }
-                    }
-                    InputMode::Password => {
-                        if self.new_connection.password.is_none() {
-                            self.new_connection.password = Some(String::new());
-                        }
-                        if let Some(password) = self.new_connection.password.as_mut() {
-                            password.push(c);
-                        }
+                    if let Some(port) = self.new_connection.port.as_mut() {
+                        port.push(c);
                     }
                 }
-            }
-            KeyCode::Backspace => {
-                match self.input_mode {
-                    InputMode::Label => { self.new_connection.label.pop(); }
-                    InputMode::Host => { self.new_connection.host.pop(); }
-                    InputMode::Port => {
-                        if let Some(port) = self.new_connection.port.as_mut() {
-                            port.pop();
-                        }
+                InputMode::User => {
+                    if self.new_connection.user.is_none() {
+                        self.new_connection.user = Some(String::new());
                     }
-                    InputMode::User => {
-                        if let Some(user) = self.new_connection.user.as_mut() {
-                            user.pop();
-                        }
-                    }
-                    InputMode::Password => {
-                        if let Some(password) = self.new_connection.password.as_mut() {
-                            password.pop();
-                        }
+                    if let Some(user) = self.new_connection.user.as_mut() {
+                        user.push(c);
                     }
                 }
-            }
+                InputMode::Password => {
+                    if self.new_connection.password.is_none() {
+                        self.new_connection.password = Some(String::new());
+                    }
+                    if let Some(password) = self.new_connection.password.as_mut() {
+                        password.push(c);
+                    }
+                }
+            },
+            KeyCode::Backspace => match self.input_mode {
+                InputMode::Label => {
+                    self.new_connection.label.pop();
+                }
+                InputMode::Host => {
+                    self.new_connection.host.pop();
+                }
+                InputMode::Port => {
+                    if let Some(port) = self.new_connection.port.as_mut() {
+                        port.pop();
+                    }
+                }
+                InputMode::User => {
+                    if let Some(user) = self.new_connection.user.as_mut() {
+                        user.pop();
+                    }
+                }
+                InputMode::Password => {
+                    if let Some(password) = self.new_connection.password.as_mut() {
+                        password.pop();
+                    }
+                }
+            },
             KeyCode::Tab => {
                 // Switch between input fields
                 self.input_mode = match self.input_mode {
@@ -194,13 +198,15 @@ impl App {
                 "Are you sure you want to delete the connection '{}'? (y/n)",
                 connection.label
             ))
-                .block(block)
-                .wrap(Wrap { trim: true });
+            .block(block)
+            .wrap(Wrap { trim: true });
 
-            terminal.draw(|f| {
-                f.render_widget(Clear, confirm_area); // Clear the area for the popup
-                f.render_widget(paragraph, confirm_area);
-            }).unwrap();
+            terminal
+                .draw(|f| {
+                    f.render_widget(Clear, confirm_area); // Clear the area for the popup
+                    f.render_widget(paragraph, confirm_area);
+                })
+                .unwrap();
 
             if let Event::Key(key) = event::read().unwrap() {
                 match key.code {

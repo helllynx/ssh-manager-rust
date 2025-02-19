@@ -8,7 +8,10 @@ use crate::ui::style::{APP_HEADER_BG, NORMAL_ROW_COLOR, SELECTED_STYLE_FG, TEXT_
 use crate::utils;
 use color_eyre::config::HookBuilder;
 use crossterm::cursor::{EnableBlinking, Hide, SetCursorStyle, Show};
-use crossterm::{terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen}, ExecutableCommand};
+use crossterm::{
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    ExecutableCommand,
+};
 use execute::Execute;
 use ratatui::{prelude::*, widgets::*};
 
@@ -80,15 +83,20 @@ impl App {
                         Command::new("sh")
                             .arg("-c")
                             .arg(ssh_command)
-                            .execute_output().unwrap()
+                            .execute_output()
+                            .unwrap()
                     } else {
                         Command::new("ssh")
                             .arg("-o ServerAliveInterval=15")
                             .arg("-o ServerAliveCountMax=3")
                             .arg("-o StrictHostKeyChecking=no")
-                            .arg(format!("{}@{}", self.items.items[i].user, self.items.items[i].host))
+                            .arg(format!(
+                                "{}@{}",
+                                self.items.items[i].user, self.items.items[i].host
+                            ))
                             .arg(format!("-p {}", self.items.items[i].port))
-                            .execute_output().unwrap()
+                            .execute_output()
+                            .unwrap()
                     };
 
                     if let Some(exit_code) = output.status.code() {
@@ -113,17 +121,25 @@ impl App {
                 Status::Available => {
                     restore_terminal().unwrap();
 
-                    let mount_path = format!("/tmp/{}", utils::remove_whitespace(self.items.items[i].label.as_str()));
-                    fs::create_dir_all(&mount_path).expect(&format!("Can't create temp directory {}", mount_path));
+                    let mount_path = format!(
+                        "/tmp/{}",
+                        utils::remove_whitespace(self.items.items[i].label.as_str())
+                    );
+                    fs::create_dir_all(&mount_path)
+                        .expect(&format!("Can't create temp directory {}", mount_path));
 
                     let output = Command::new("sshfs")
                         // .arg("-o reconnect")
                         // .arg("-o ServerAliveInterval=15")
                         // .arg("-o ServerAliveCountMax=3")
-                        .arg(format!("{}@{}:/", self.items.items[i].user, self.items.items[i].host))
+                        .arg(format!(
+                            "{}@{}:/",
+                            self.items.items[i].user, self.items.items[i].host
+                        ))
                         .arg(mount_path)
                         .arg(format!("-p {}", self.items.items[i].port))
-                        .execute_output().unwrap();
+                        .execute_output()
+                        .unwrap();
 
                     if let Some(exit_code) = output.status.code() {
                         if exit_code == 0 {
@@ -226,7 +242,9 @@ impl App {
         let info = if let Some(i) = self.items.state.selected() {
             match self.items.items[i].status {
                 Status::Available => self.items.items[i].display(),
-                Status::NotAvailable => "NotAvailable - ".to_string() + self.items.items[i].host.as_str(),
+                Status::NotAvailable => {
+                    "NotAvailable - ".to_string() + self.items.items[i].host.as_str()
+                }
             }
         } else {
             "Please select the connection".to_string()
@@ -270,11 +288,12 @@ fn render_title(area: Rect, buf: &mut Buffer) {
 }
 
 fn render_footer(area: Rect, buf: &mut Buffer) {
-    Paragraph::new("\nUse ↓↑ to move, ← to unselect, → to change status, g/G to go top/bottom. f to sshfs.")
-        .centered()
-        .render(area, buf);
+    Paragraph::new(
+        "\nUse ↓↑ to move, ← to unselect, → to change status, g/G to go top/bottom. f to sshfs.",
+    )
+    .centered()
+    .render(area, buf);
 }
-
 
 // https://github.com/TheAwiteb/ratatui-textarea/blob/main/examples/single_line.rs
 pub(crate) fn add_new_connection_ui(f: &mut Frame, app: &App) {
@@ -288,13 +307,13 @@ pub(crate) fn add_new_connection_ui(f: &mut Frame, app: &App) {
     } else {
         "Press n to add new connection"
     };
-    let paragraph = Paragraph::new(text)
-        .centered()
-        .wrap(Wrap { trim: true });
+    let paragraph = Paragraph::new(text).centered().wrap(Wrap { trim: true });
     f.render_widget(paragraph, instructions);
 
     if app.new_item_popup {
-        let block = Block::default().title("New Connection").borders(Borders::ALL);
+        let block = Block::default()
+            .title("New Connection")
+            .borders(Borders::ALL);
         let area = centered_rect(60, 80, area);
         f.render_widget(Clear, area); // clear background for popup
 
@@ -305,7 +324,7 @@ pub(crate) fn add_new_connection_ui(f: &mut Frame, app: &App) {
             Constraint::Length(3),
             Constraint::Length(3),
         ])
-            .split(area);
+        .split(area);
 
         // Render input fields
         let label_field = Paragraph::new(app.new_connection.label.to_string())
@@ -324,28 +343,46 @@ pub(crate) fn add_new_connection_ui(f: &mut Frame, app: &App) {
             });
         f.render_widget(host_field, input_layout[1]);
 
-        let port_field = Paragraph::new(app.new_connection.port.as_ref().unwrap_or(&"".to_string()).to_string())
-            .block(Block::default().title("Port").borders(Borders::ALL))
-            .style(match app.input_mode {
-                InputMode::Port => Style::default().fg(Color::Yellow),
-                _ => Style::default(),
-            });
+        let port_field = Paragraph::new(
+            app.new_connection
+                .port
+                .as_ref()
+                .unwrap_or(&"".to_string())
+                .to_string(),
+        )
+        .block(Block::default().title("Port").borders(Borders::ALL))
+        .style(match app.input_mode {
+            InputMode::Port => Style::default().fg(Color::Yellow),
+            _ => Style::default(),
+        });
         f.render_widget(port_field, input_layout[2]);
 
-        let user_field = Paragraph::new(app.new_connection.user.as_ref().unwrap_or(&"".to_string()).to_string())
-            .block(Block::default().title("User").borders(Borders::ALL))
-            .style(match app.input_mode {
-                InputMode::User => Style::default().fg(Color::Yellow),
-                _ => Style::default(),
-            });
+        let user_field = Paragraph::new(
+            app.new_connection
+                .user
+                .as_ref()
+                .unwrap_or(&"".to_string())
+                .to_string(),
+        )
+        .block(Block::default().title("User").borders(Borders::ALL))
+        .style(match app.input_mode {
+            InputMode::User => Style::default().fg(Color::Yellow),
+            _ => Style::default(),
+        });
         f.render_widget(user_field, input_layout[3]);
 
-        let password_field = Paragraph::new(app.new_connection.password.as_ref().unwrap_or(&"".to_string()).to_string())
-            .block(Block::default().title("Password").borders(Borders::ALL))
-            .style(match app.input_mode {
-                InputMode::Password => Style::default().fg(Color::Yellow),
-                _ => Style::default(),
-            });
+        let password_field = Paragraph::new(
+            app.new_connection
+                .password
+                .as_ref()
+                .unwrap_or(&"".to_string())
+                .to_string(),
+        )
+        .block(Block::default().title("Password").borders(Borders::ALL))
+        .style(match app.input_mode {
+            InputMode::Password => Style::default().fg(Color::Yellow),
+            _ => Style::default(),
+        });
         f.render_widget(password_field, input_layout[4]);
     }
 }
@@ -357,21 +394,21 @@ pub(crate) fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         Constraint::Percentage(percent_y),
         Constraint::Percentage((100 - percent_y) / 2),
     ])
-        .split(r);
+    .split(r);
 
     Layout::horizontal([
         Constraint::Percentage((100 - percent_x) / 2),
         Constraint::Percentage(percent_x),
         Constraint::Percentage((100 - percent_x) / 2),
     ])
-        .split(popup_layout[1])[1]
+    .split(popup_layout[1])[1]
 }
-
 
 impl StatefulList {
     pub(crate) fn with_items(items: Vec<StoredConnection>) -> StatefulList {
-        let a = items.into_iter().map(|item|
-            ConnectionItem {
+        let a = items
+            .into_iter()
+            .map(|item| ConnectionItem {
                 label: item.label,
                 host: item.host,
                 port: item.port.unwrap_or("22".parse().unwrap()), // TODO maybe configure default port and default user
@@ -383,8 +420,8 @@ impl StatefulList {
                 },
                 details: "".parse().unwrap(),
                 status: Status::Available,
-            }
-        ).collect::<Vec<ConnectionItem>>();
+            })
+            .collect::<Vec<ConnectionItem>>();
 
         StatefulList {
             state: ListState::default(),
