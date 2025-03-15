@@ -7,6 +7,7 @@ use ratatui::backend::Backend;
 use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap};
 use ratatui::Terminal;
 use std::io;
+use ratatui::layout::Rect;
 
 pub(crate) struct App {
     pub(crate) items: StatefulList,
@@ -187,7 +188,7 @@ impl App {
     fn confirm_deletion<B: Backend>(&mut self, terminal: &mut Terminal<B>, path: &String) {
         if let Some(selected) = self.items.state.selected() {
             let connection = &self.items.items[selected];
-            let confirm_area = centered_rect(50, 20, terminal.size().unwrap());
+            let confirm_area = centered_rect(50, 20, Rect::new(0,0, terminal.size().unwrap().width, terminal.size().unwrap().height));
 
             let block = Block::default()
                 .title("Confirm Deletion")
